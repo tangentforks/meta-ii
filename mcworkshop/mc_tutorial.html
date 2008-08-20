@@ -1,0 +1,3169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+                      "http://www.w3.org/TR/html4/loose.dtd">
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<TITLE>Tutorial: Metacompilers Part 1</TITLE>
+<LINK REL="shortcut icon" TYPE="image/ico" HREF="favicon.ico">
+<META NAME="KEYWORDS" CONTENT="MetaII, D.V. Schorre, metacompilers, cross compilers">
+<META NAME="KEYWORDS" CONTENT="compilers, domain analysis, syntax-directed compiler">
+<META NAME="KEYWORDS" CONTENT="compiler generator, meta definition">
+<META NAME="DESCRIPTION" CONTENT="how to build a metacompiler in javascript">
+</HEAD>
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000">
+<CENTER>
+<H2>Tutorial: Metacompilers Part 1</H2>
+<B>James M. Neighbors</B><BR>
+<A HREF="mailto:James.Neighbors@BayfrontTechnologies.com">James.Neighbors@BayfrontTechnologies.com</A><BR>
+Bayfront Technologies, Inc.<BR>
+August 20, 2008<BR>
+<img src="pdficon.gif" alt="pdficon">&nbsp;<a href="metacompilers1.pdf">Tutorial in PDF</a>
+</CENTER>
+<BR>
+<CENTER>
+<B>Table of Contents</B><BR>
+<TABLE>
+<TR>
+<TD ALIGN="LEFT">
+<UL>
+<LI>
+<A HREF="#s01">Step 1. Where are we going with this tutorial?</A>
+</LI>
+<LI>
+<A HREF="#s02">Step 2. Compiling arithmetic statements</A>
+</LI>
+<LI>
+<A HREF="#s03">Step 3. Example AEXP compiler</A>
+</LI>
+<LI>
+<A HREF="#s04">Step 4. META II metacompiler</A>
+</LI>
+<LI>
+<A HREF="#s05">Step 5. META II in detail</A>
+</LI>
+<LI>
+<A HREF="#s06">Step 6. Making a syntax change</A>
+</LI>
+<LI>
+<A HREF="#s07">Step 7. Making an output semantics change</A>
+</LI>
+<LI>
+<A HREF="#s08">Step 8. Making an implementation language change</A>
+</LI>
+<LI>
+<A HREF="#s09">Step 9. Comparing implementations</A>
+</LI>
+</UL>
+</TD>
+
+<TD ALIGN="LEFT">
+<UL>
+<LI>
+<A HREF="#s10">Step 10. Making a token semantics change</A>
+</LI>
+<LI>
+<A HREF="#s11">Step 11. Making input language semantics change</A>
+</LI>
+<LI>
+<A HREF="#s12">Step 12. Making an object implementation</A>
+</LI>
+<LI>
+<A HREF="#s13">Step 13. Adding backtracking semantics</A>
+</LI>
+<LI>
+<A HREF="#s14">Step 14. Closing the circle</A>
+</LI>
+<LI>
+<A HREF="#s15">Step 15. Benefits and drawbacks</A>
+</LI>
+<LI>
+<A HREF="#s16">Step 16. Source for the metacompiler workshop</A>
+</LI>
+<LI>
+<A HREF="#s17">Step 17. Conclusions and pragmatics</A>
+</LI>
+<LI>
+<A HREF="#refs">References</A>
+</LI>
+</UL>
+</TD>
+
+</TR>
+</TABLE>
+</CENTER>
+<A NAME="s01"></A>
+<B>Step 1. Where are we going with this tutorial?</B>
+<BR><BR>
+You are going to make a compiler right here on these web pages. Yes - no kidding.
+In fact you are going to make a lot of compilers - and it's all going to be easy.
+No Ajax, Active X, DLLs, SOs, ASP, CGI, Java,
+plugins, modules, XML, cookies, PHP, Perl, Python, magic shell operations, world wide standard du jour, or
+intergalactic domination plans are necessary - just plain JavaScript in frames.
+Also you will be able to move the compiler you build off these web pages and
+into your programming language of choice by cutting and pasting.
+After all a compiler is just a program that reads text and writes text or binary.
+Most general purpose programming languages are capable of doing that.
+
+<BR><BR>
+<B>Step 1.1 Background and History</B>
+<BR><BR>
+Programming languages above the level of individual machine assembly languages were
+introduced in the 1950s. The idea was to be able to write programs independent
+of any particular machine. It seems an obvious notion now, but was a big innovation then.
+<BR><BR>
+Following IBM's FORTRAN in 1954 the first widely discussed academic language was ALGOL 60 from 1960.
+This set off a flurry of interest in how a compiler for ALGOL 60 could be made and
+then easily ported to all the wildly different machine assembly languages of the time.
+One proposed method was META II that was published by D.V. Schorre in the 1964 ACM National Conference.
+Below are the reference, link, and abstract of the 1964 META II paper <A HREF="#Schorre64">[Schorre64]</A>.
+<BLOCKQUOTE>
+<B>META II: A Syntax-Oriented Compiler Writing Language.</B><BR>
+Schorre, D. V.<BR>
+In <I>Proceedings of the 1964 19th ACM National Conference</I>,<BR>
+ACM Press, New York, NY, 41.301-41.3011, 1964.<BR>
+available as <A HREF="http://doi.acm.org/10.1145/800257.808896">http://doi.acm.org/10.1145/800257.808896</A><BR>
+<BR>
+<B>Abstract:</B>
+<BR>
+Meta II is a compiler writing language which consists of syntax equations resembling Backus normal form
+and into which instructions to output assembly language commands are inserted.
+Compilers have been written in this language for VALGOL I and VALGOL II. The former is a simple
+algebraic language designed for the purpose of illustrating META II. The latter contains a fairly 
+large subset of ALGOL 60.
+<BR><BR>
+The method of writing compilers which is given in detail in the paper may be explained briefly as follows.
+Each syntax equation is translated into a recursive subroutine which tests the input string for a particular
+phrase structure, and deletes it if found. Backup is avoided by the extensive use of factoring in the syntax
+equations. For each source language, an interpreter is written and programs are compiled into that interpretive
+language.
+<BR><BR>
+META II is not intended as a standard language which everyone will use to write compilers. Rather, it is an
+example of a simple working language which can give one a good start in designing a compiler-writing compiler 
+suited to his own needs. Indeed, the META II compiler is written in its own language, thus lending itself to 
+modification.
+</BLOCKQUOTE>
+<B>Step 1.2 What's so special about META II?</B>
+<BR><BR>
+Why should anyone spend time learning something from 1964? Can it possibly be of any use over 40 years later?
+The very short answer is - yes. The above abstract talks about compiling ALGOL 60 - not exactly today's problem.
+Instead how would you like to be able to dynamically generate a custom XML parser from a dynamic XML document definition
+and run it in JavaScript on an XML instance on the client side before POSTING the content to the server? This is the same
+problem - dynamic generation of a compiler as an interpreter from a metadefinitional form. 
+META II can help with this problem. Its clear ideas are as fresh and useful today as they were in 1964.
+<BR><BR>
+You won't really find metacompilers like META II in compiler textbooks as they are primarily concerned
+with slaying the dragons of the 1960s using 1970s formal theory. 
+The only problem with this formal theory work is that it is not simple. You might
+look in a compiler text for a simple parsing and end up wading through a proof about the correctness of LALR tables. META II is
+simple and elegant - and sometimes that works. I've used it many times over the years and it's an 
+important tool in my bag of tricks. I've given META II versions to friends and we've made important commercial 
+products with it. I used its concepts in my 1980 
+<A HREF="http://www.bayfronttechnologies.com/l02draco.htm#diss80">Ph.D. dissertation</A> as part of 
+the theory of <i>domain analysis</i>.
+I used its metadefinitional concepts in my 2002 paper 
+<A HREF="http://www.bayfronttechnologies.com/l02draco.htm#icsr7gt">"Techniques for Generating Communicating Systems"</A>
+<BR><BR>
+I'm not alone as an admirer of META II. In 1990 when Donald Knuth was asked what helped to crystallize his thinking
+about attribute grammars he related the following <A HREF="#Knuth90">[Knuth90]</A>.
+<BLOCKQUOTE>
+"Many details of those two days (February 4-5, 1967) still
+remain fresh in my mind. ... Peter [Wegner] asked me what I thought about formal semantics, and I said I liked Iron's
+idea of synthesizing an overall meaning from submeanings. I also said that I liked the
+way other people had combined Irons's approach with a top-down or "recursive-descent"
+parser; Irons had used a more complex parsing scheme. In particular, I was impressed
+by the metacompiler of Val Schorre <A HREF="#Schorre64">[Schorre64]</A> and by the more powerful (though less elegant)
+"transmogrifier" of Bob McClure <A HREF="#McClure65">[McClure65]</A>."
+</BLOCKQUOTE>
+Later in this same article Knuth goes on to discuss how the use of recursive-descent parsers prompted him to examine
+class of LL(k) parsers. After a decade of formal analysis what the 1964 META II does is generate <i>top-down recursive-descent
+parsers with Wirth-Weber code ejection</i>. I have the feeling this description would bring a smile to the 
+faces of the crew around the UCLA Computing Facility where Val Schorre worked in 1964.
+One reason to smile is that it recognizes their important contribution to theory.
+Another reason to smile is that long-winded definition is too complex and obtuse.
+Ironically as a definition it is essentially obsolete because
+it doesn't really capture the idea of what a metacompiler is or how it was achieved in META II.
+<i>META II can reproduce its own code from a description.</i> After working with these systems for
+over 35 years I still find that amazing! I hope you will find it amazing too.
+<BR><BR>
+<B>Step 1.3 The Metacompiler Workshop</B>
+<BR><BR>
+The Metacompiler Workshop is a webpage that can build compilers.
+It uses only JavaScript in frames.
+If you wish to check the validity of this statement for yourself, please skip to <A HREF="#s16">Step 16</A> where
+we provide links to the Metacompiler Workshop webpage sources.
+When you open the Metacompiler Workshop some browsers may need an OK to run JavaScript.
+Please open the <A HREF="mc_workshop.html">Metacompiler Workshop</A> webpage under a new browser tab or window.
+It has been tested with Microsoft Internet Explorer 7 and Mozilla Firefox 2.
+Its HTML source has been validated by <A HREF="http://validator.w3.org/">W3C Validator</A>
+as "Valid HTML 4.01 Transitional" in a "Valid HTML 4.01 Frameset" (see <A HREF="#s16">Step 16</A> for details).
+Alternatively you may download <A HREF="mc_tutorial.zip">mc_tutorial.zip</A> 
+containing all the files needed to use this tutorial and the Metacompiler Workshop offline.
+Just unzip the all the files into a directory.
+Most of the steps of this tutorial will involve working with the workshop.
+<BR><BR>
+The workshop consists of three text boxes:
+<OL>
+<LI>
+<B>Input</B> provides the text input to the compiler. There is a drop down selection for the
+texts used in the META II paper and the many extensions on these pages. Feel free to edit the Input window text by keystroke or
+cut-and-paste.   
+</LI>
+<LI>
+<B>Code</B> provides the pseudo assembly language presented in the META II paper and later JavaScript extensions. We will discuss the
+meaning of this language later. There is a drop down selection for the codes used in the META II paper
+and on these pages. You may also edit the Code window text.
+</LI>
+<LI>
+<B>Output</B> is the output of the last compile. There are two output-related buttons: "Copy to Code" and "Clear".
+"Copy to Code" is used if the output is a new compiler you wish to test. As with all the other windows
+you may edit the text of the Output window.
+</LI>
+</OL>
+At the bottom of the window are three buttons "Compile", "Compare Code and Output", and "Extract Syntax to Output".
+The "Compile" button
+runs the code in the Code window on the Input window contents and places any output in
+the Output window.
+The "Compare Code and Output" button compares the text in the Code and Output windows and displays the first difference.
+The "Extract Syntax to Output" button will be discussed later in <A HREF="#s02">Step 2</A>.
+<CENTER>
+<IMG SRC="mc_frame.gif" ALT="[Metacompiler Workshop interface image]" Width="80%">
+</CENTER>
+<BR><BR>
+<A NAME="s02"></A>
+<B>Step 2. Compiling arithmetic statements</B>
+<BR><BR>
+In this step we present a small demonstration compiler.
+The goal of this step is to get you comfortable with the operation of the workshop. The demonstration
+compiler is AEXP which just compiles arithmetic assignment statements.
+In <A HREF="#s03">Step 3</A> we will show you how to build AEXP.
+<BR><BR>
+<B>Step 2.1 Enough talking let's see it do something!</B>
+<BR><BR>
+<OL>
+<LI>Select Input i01. demo, AEXP example assignments</LI>
+<LI>Select Code c01. demo, AEXP assignments compiler c[i02,c02]</LI>
+<LI>Click the "Compile" button in the lower left corner</LI>
+</OL>
+Depending on your browser you may see the output appear one line at a time.
+If the compile finishes without error, you will see a confirm dialog box that says "Done.". If the compile
+encounters an error, you will see an alert dialog box with error information before the final "Done." confirm dialog box.
+If all goes well the table below shows the compiling transformation from the Input to the Output.
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Input</TH><TH>Output</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+fern:=5+6;
+ace:=fern*5;
+waldo:=fern+alpha/-beta^gamma;
+</PRE>
+</TD>
+<TD ALIGN="LEFT">
+<PRE>
+	address fern
+	literal 5
+	literal 6
+	add
+	store
+	address ace
+	load fern
+	literal 5
+	mpy
+	store
+	address waldo
+	load fern
+	load alpha
+	load beta
+	minus
+	load gamma
+	exp
+	div
+	add
+	store
+</PRE>
+</TD>
+</TR>
+</TABLE>
+</CENTER>
+The output language is a made-up example language that computes arithmetic expressions using a stack. 
+Examine the output from this little arithmetic expression compiler carefully.
+It knows an awful lot about its operators. As an example it knows that division is higher precedence than addition
+(i.e., <CODE>A+B/C</CODE> is <CODE>A+(B/C)</CODE> rather
+than <CODE>(A+B)/C)</CODE>).
+It knows that exponentiation is right associative (i.e., <CODE>A^B^C</CODE> is <CODE>A^(B^C)</CODE> rather
+than <CODE>(A^B)^C)</CODE> and that addition is left associative
+(i.e., <CODE>A+B+C</CODE> is calculated <CODE>(A+B)+C</CODE> rather than <CODE>A+(B+C)</CODE>). It knows that the unary operator minus
+is higher precedence than exponentiation (i.e., <CODE>-A^B^C</CODE> is <CODE>(-A)^(B^C)</CODE>). Pretty sophisticated stuff precedence
+with left-right associative parsing to code generation.
+You can prove these statements to yourself by cutting these expressions out of these sentences and pasting them into the Input window
+and clicking "Compile" again. (e.g., <CODE>fern:=A+B/C;</CODE>)
+<BR><BR>
+<B>Step 2.2 Checking the output</B>
+<BR><BR>
+Repeating some of the above steps demonstrates the function of the "Compare Code and Output" button.
+<OL>
+<LI>Select Input "Input Clear"</LI>
+<LI>Select Input "i01. demo, AEXP example assignments"</LI>
+<LI>Select Code "c01. demo, AEXP assignments compiler c[i02,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner</LI>
+<LI>Select Code "c00. demo, compiled assignments c[i01,c01]"</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner</LI>
+</OL>
+The comparison should indicate that the Input and Output window contain the same text. You can see what the comparison does
+when they are not the same by editing either one of them.
+<BR><BR>
+Notice that the notation <CODE>c[i01,c01]</CODE> on the second code selection above means that the code resulted from
+compiling Input <CODE>i01</CODE> with Code <CODE>c01</CODE>.
+<BR><BR>
+<B>Step 2.3 Really - make sure we aren't lying</B>
+<BR><BR>
+Repeating some of the above steps demonstrates what happens when a compile fails.
+<OL>
+<LI>Select Input "Input Clear"</LI>
+<LI>Select Input "i01. demo, AEXP example assignments"</LI>
+<LI>Select Code "c01. demo, AEXP assignments compiler c[i02,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner</LI>
+</OL>
+Now just start changing things.
+<OL>
+<LI>Change the name of one of the Input variables and click Compile to prove that
+we are actually compiling the contents of the Input window.</LI>
+<LI>Change the name of one of the Code constants (e.g., <CODE>'store'</CODE> into <CODE>'save'</CODE> or something)
+in the Code window and click Compile. (Yes you can edit the Code window and it is the code we run when Compile is clicked.
+If you create an infinite loop you will have to close and restart the browser.)</LI>
+<LI>Try editing the Input and clicking "Compile" until you receive the error notification alert box.
+The last line in the alert box tells you where the compiler was scanning when it encountered the error by
+inserting a <CODE>&lt;scan&gt;</CODE> marker into the erroneous input line.</LI>
+</OL>
+<A NAME="s03"></A>
+<B>Step 3. Example AEXP compiler</B>
+<BR><BR>
+All compilers must deal with two languages: the input language it compiles from (<i>syntax</i>) and
+the output language it compiles to (<i>code</i>).
+<OL>
+<LI>Select Input "i02. demo, AEXP example assignment compiler"</LI>
+<LI>Click the "Extract Syntax to Output" button in the lower left corner</LI>
+</OL>
+This should result in the following windows.
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Input</TH><TH>Output ("Extract Syntax to Output")</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX AEXP
+
+AEXP = AS $AS .,
+AS = .ID .OUT('address ' *) ':=' EX1 .OUT('store') ';' .,
+EX1 = EX2 $('+' EX2 .OUT('add') /
+            '-' EX2 .OUT('sub') ) .,
+EX2 = EX3 $('*' EX3 .OUT('mpy') /
+            '/' EX3 .OUT('div') ) .,
+EX3 = EX4 $('^' EX3 .OUT('exp')) .,
+EX4 = '+' EX5 / '-' EX5 .OUT('minus') / EX5 .,
+EX5 = .ID  .OUT('load ' *) /
+      .NUMBER .OUT('literal ' *) /
+      '(' EX1 ')' .,
+
+.END
+</PRE>
+</TD>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX AEXP
+
+AEXP = AS $AS ;
+
+AS = .ID ':=' EX1 ';' ;
+
+EX1 = EX2 $( '+' EX2 / '-' EX2 ) ;
+
+EX2 = EX3 $( '*' EX3 / '/' EX3 ) ;
+
+EX3 = EX4 $( '^' EX3 ) ;
+
+EX4 = '+' EX5 / '-' EX5 / EX5 ;
+
+EX5 = .ID / .NUMBER / '(' EX1 ')' ;
+
+.END
+</PRE>
+</TD>
+</TR>
+</TABLE>
+A META II Compiler of Arithmetic Statements to Stack Code<BR>
+</CENTER><BR>
+The Input above is a META II compiler description of the arithmetic statement compiler.
+All of that sophisticated precedence and associative parsing is contained in this 15 line description.
+This same description would have compiled and run in 1964 by the original META II (except perhaps for the lower case).
+The Output resulting from the "Extract Syntax to Output" button operating on the Input separates the <i>syntax</i> or input language
+the compiler compiles from the output <i>code</i> language such as "add" in this case.
+<BR><BR>
+<B>Step 3.1 Understanding syntax</B>
+<BR><BR>
+In the above table the <i>syntax</i> or input language description has been separated from the complete compiler description into the
+Output window. The discussion of this section considers just that Output window. As Schorre states in his abstract these are
+"syntax equations resembling Backus normal form".
+The syntax description starts with a <CODE>.SYNTAX</CODE> statement that provides the initial rule
+(<CODE>AEXP</CODE> in this case) that is followed by a series of named <i>syntax rules</i> and ends with a <CODE>.END</CODE> statement.
+Each <i>syntax rule</i> starts with a name followed by a "=" followed by a series of recognition constructs and ends with a ".," or ";".
+Since this is <i>syntax-directed compiling</i> the constructs are concerned with successfully recognizing input or not.
+Recognizing a bit of input is thought of as being either successful or unsuccessful. 
+As parts of the input are successfully recognized, they are skipped over in the input string.
+<i>Whitespace</i> consisting of blanks, tabs, and line controls (e.g., carriage return and line feed)
+separates the recognized syntax constructs in the input.
+<BR><BR>
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Construct</TH><TH>Meaning</TH><TH>Concept Name</TH></TR>
+<TR><TD><CODE>.ID</CODE></TD><TD>recognize an identifier</TD><TD><i>token</i></TD></TR>
+<TR><TD><CODE>.NUMBER</CODE></TD><TD>recognize a number</TD><TD><i>token</i></TD></TR>
+<TR><TD><CODE>.STRING</CODE></TD><TD>recognize any string in single quotes</TD><TD><i>token</i></TD></TR>
+<TR><TD>string in single quotes</TD><TD>recognize the given string</TD><TD><i>literal string</i></TD></TR>
+<TR><TD>rule name</TD><TD>recognize the given syntax rule</TD><TD><i>invocation</i></TD></TR>
+<TR><TD><CODE>A / B</CODE></TD><TD>recognize A or B</TD><TD><i>alternation</i> (OR)</TD></TR>
+<TR><TD><CODE>A B</CODE></TD><TD>recognize A and B</TD><TD><i>sequence</i> (AND)</TD></TR>
+<TR><TD><CODE>.EMPTY</CODE></TD><TD>recognize nothing, always succeed</TD><TD><i>option</i> (NOT)</TD></TR>
+<TR><TD><CODE>$A</CODE></TD><TD>repeat A until not recognized</TD><TD><i>iteration</i></TD></TR>
+<TR><TD><CODE>(A B)</CODE></TD><TD>group recognition constructs</TD><TD><i>precedence</i></TD></TR>
+</TABLE>
+Meta II Syntax Constructs<BR>
+</CENTER><BR>
+Choices and control constructs are given by a <CODE>(A1 A2 ... An / B1 B2 ... Bn)</CODE> syntax. If A1 is successful, then A2 through An
+if present must be successful or an error occurs. If A1 succeeds, then the B alternatives are not attempted. If A1 is not successful, then
+B1 is attempted. If B1 is successful, then B2 through Bn if present must be successful or an error occurs.
+If both A1 and B1 are unsuccessful, then the entire grouped construct is unsuccessful. Notice there are two grammar operators here:
+<i>alternation</i> (an OR choice) delimited by <CODE>/</CODE> and <i>sequence</i> (an AND choice) delimited by blanks.
+<BR><BR>
+The construct <CODE>.EMPTY</CODE> doesn't try to recognize anything and always succeeds. It is useful in cases such as
+<CODE>(A / .EMPTY)</CODE> where even if A fails, then the entire grouped construct succeeds.
+In essence this indicates the syntax A as being optional.
+<CODE>.EMPTY</CODE> is built-in to recognize the absence (a NOT choice) of an <i>optional</i> syntax.
+The <CODE>.EMPTY</CODE> construct is not used in the <CODE>AEXP</CODE> compiler presented above as there
+is no optional syntax.
+<BR><BR>
+<B>Step 3.2 Understanding output code</B>
+<BR><BR>
+In this section we will be concerned with the complete <CODE>AEXP</CODE> compiler description from the Input window shown above.
+As Schorre states in his abstract this complete compiler description
+"consists of syntax equations resembling Backus normal form and into
+which instructions to output assembly language commands are inserted".
+As can be seen in the above Output window, the <i>syntax</i> is basically the complete compiler description with the
+<CODE>.OUT</CODE> and <CODE>.LABEL</CODE>
+code generating constructs removed. In MetaII <i>syntax-directed compiling</i> the code generation constructs are
+embedded in the control of the syntax recognition constructs. This means for control reasons <i>code</i> constructs
+shown in the following table must mimic a <i>syntax</i> construct.
+As syntax constructs all <i>code</i> constructs don't try to recognize anything and always succeed.
+<BR><BR>
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Construct</TH><TH>Meaning</TH><TH>Concept Name</TH></TR>
+<TR><TD><CODE>.OUT()</CODE></TD><TD>output a text line</TD><TD><i>format control</i></TD></TR>
+<TR><TD><CODE>.OUT('string')</CODE></TD><TD>output a literal string w/o quotes</TD><TD><i>literal output</i></TD></TR>
+<TR><TD><CODE>.OUT(*)</CODE></TD><TD>output last recognized token</TD><TD><i>token output</i></TD></TR>
+<TR><TD><CODE>.OUT(*1)</CODE></TD><TD>output generated number 1</TD><TD><i>generated label</i></TD></TR>
+<TR><TD><CODE>.OUT(*2)</CODE></TD><TD>output generated number 2</TD><TD><i>generated label</i></TD></TR>
+<TR><TD><CODE>.LABEL 'string'</CODE></TD><TD>output a literal string w/o quotes at left margin</TD><TD><i>literal output</i></TD></TR>
+<TR><TD><CODE>.LABEL *</CODE></TD><TD>output last recognized token at left margin</TD><TD><i>token output</i></TD></TR>
+<TR><TD><CODE>.LABEL *1</CODE></TD><TD>output generated number 1 at left margin</TD><TD><i>generated label</i></TD></TR>
+<TR><TD><CODE>.LABEL *2</CODE></TD><TD>output generated number 2 at left margin</TD><TD><i>generated label</i></TD></TR>
+</TABLE>
+Meta II Code Constructs<BR>
+</CENTER><BR>
+<CODE>.OUT(*)</CODE> and <CODE>.LABEL *</CODE> means output
+the last recognized <i>token</i> (i.e., input last recognized by
+a <CODE>.ID</CODE>, <CODE>.NUMBER</CODE>, or <CODE>.STRING</CODE> syntax construct).
+<BR><BR>
+The basic idea of the output of code is single text line at a time.
+All of the code constructs shown with <CODE>.OUT</CODE> above may be combined into a single <CODE>.OUT()</CODE>.
+The <CODE>.LABEL</CODE> constructs cannot be combined.
+Each <CODE>.OUT()</CODE> and <CODE>.LABEL</CODE> corresponds to one output line.
+Each <CODE>.OUT()</CODE> produces output on a new line indented to assembly op code position.
+Each <CODE>.LABEL</CODE> produces output at the left margin the assembly language label position.
+These output conventions correspond to
+assembly language formatted output where labels are against the left margin and operation codes are indented.
+Meta II was built in 1964 to generate assembly language output.
+Later we will expand these output choices to include the modern block structured languages
+while maintaining the ability to output assembly languages. 
+<BR><BR>
+<B>Step 3.3 Building the AEXP compiler</B>
+<BR><BR>
+Let's build this compiler.
+<OL>
+<LI>Select Input "i02. demo, AEXP example assignment compiler"</LI>
+<LI>Select Code "c02. Meta II of fig. 5, c[i03,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner</LI>
+</OL>
+The Output contains META II pseudo code for the assignment statement compiler.
+Congratulations - you just made a compiler. OK, it's small - but we're only on step 3.
+<BR><BR>
+Let's test this newly created compiler.
+<OL>
+<LI>Click the "Copy to Code" button at the top of the Output window</LI>
+<LI>Select Input "i01. demo, AEXP example assignments"</LI>
+<LI>Click the "Compile" button in the lower left corner</LI>
+<LI>Select Code "c00. demo, compiled assignments c[i01,c01]"</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner</LI>
+</OL>
+This is testing the output of the compiler. Similarly you could have tested the code equivalence of the compiler as below.
+<OL>
+<LI>Select Input "i02. demo, AEXP example assignment compiler"</LI>
+<LI>Select Code "c02. Meta II of fig. 5, c[i03,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner</LI>
+<LI>Select Code "c01. demo, AEXP assignments compiler c[i02,c02]"</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner</LI>
+</OL>
+In general it is impossible to tell if two different programs perform the same function.
+However two programs with the exact same text do perform the same function.
+This is the program equivalence we are testing above.
+
+<BR><BR>
+<A NAME="s04"></A>
+<B>Step 4. META II metacompiler</B>
+<BR><BR>
+OK, I'm warning you right here - this step gets confusing.
+<BR><BR>
+META II is a metacompiler which means a bit more than it can compile itself.
+Many, say, Pascal compilers are written in Pascal and can compile themselves - but they are not metacompilers. 
+This is where we lose a lot of compiler theory textbooks.
+A <i>compiler generator</i> supports a <i>high-level domain-specific input language</i> that
+describes the compiler to be built that is independent of
+the implementation language of the compiler generator. For META II you've already seen it - the description in step 2
+of the arithmetic statement compiler is a statement in META II's domain-specific language aimed at describing compilers.
+Not all compiler generators are metacompilers.
+A <i>metacompiler</i> is a compiler generator that is capable of reproducing itself from a high-level description.
+We are going to see this actually happen in this step. That should make this high-level discussion much more concrete.
+<BR><BR>
+Just as we can characterize the syntax of assignment statements, we can characterize the syntax of syntax statements.
+I told you it was confusing. 
+The statement of META IIs Input formatted exactly from figure 5 of <A HREF="#Schorre64">[Schorre64]</A> is shown below.
+Don't worry about all the details right now. Only the basic syntax scheme, built-in syntax recognizers and control constructs should
+look familiar here. It's the same as the assignment compiler - just a bit bigger. 
+<OL>
+<LI>Select Input "i03. Meta II syntax (paper fig. 5)"</LI>
+<LI>Click the "Extract Syntax to Output" button in the lower left corner</LI>
+</OL>
+This should result in the following windows with perhaps different linebreaks.
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Input</TH><TH>Output ("Extract Syntax to Output")</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX PROGRAM
+
+OUT1 = '*1' .OUT('GN1') / '*2' .OUT('GN2') /
+'*' .OUT('CI') / .STRING .OUT('CL '*).,
+
+OUTPUT = ('.OUT' '('$OUT1 ')' /
+          '.LABEL' .OUT('LB') OUT1)
+         .OUT('OUT') .,
+
+EX3 = .ID .OUT('CLL '*) / .STRING
+.OUT('TST '*) / '.ID' .OUT('ID') /
+'.NUMBER' .OUT('NUM') /
+'.STRING' .OUT('SR') / '(' EX1 ')' /
+'.EMPTY' .OUT('SET') /
+'$' .LABEL *1 EX3
+.OUT('BT ' *1) .OUT('SET').,
+
+EX2 = (EX3 .OUT('BF ' *1) / OUTPUT)
+$(EX3 .OUT('BE') / OUTPUT)
+.LABEL *1 .,
+
+EX1 = EX2 $('/' .OUT('BT ' *1) EX2 )
+.LABEL *1 .,
+
+ST = .ID .LABEL * '=' EX1
+'.,' .OUT('R').,
+
+PROGRAM = '.SYNTAX' .ID .OUT('ADR ' *)
+$ ST '.END' .OUT('END').,
+
+.END
+</PRE>
+</TD>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX PROGRAM
+
+OUT1 = '*1' / '*2' / '*' / .STRING ;
+
+OUTPUT = ( '.OUT' '(' $OUT1 ')' /
+           '.LABEL' OUT1 ) ;
+
+EX3 = .ID / .STRING / '.ID' /
+      '.NUMBER' / '.STRING' /
+      '(' EX1 ')' / '.EMPTY' /
+      '$' EX3 ;
+
+EX2 = ( EX3 / OUTPUT )
+      $( EX3 / OUTPUT ) ;
+
+EX1 = EX2 $( '/' EX2 ) ;
+
+ST = .ID '=' EX1 '.,' ;
+
+PROGRAM = '.SYNTAX' .ID $ST '.END' ;
+
+.END
+</PRE>
+</TD>
+</TR>
+</TABLE>
+The META II Compiler Written in it's Own Language<BR>
+(Input is figure 5 of <A HREF="#Schorre64">[Schorre64]</A>)
+</CENTER><BR>
+So lets see some of this metacompiling stuff actually happen. Let's go back to building compilers.
+<OL>
+<LI>Select Input "i03. Meta II syntax (paper fig. 5)"</LI>
+<LI>Select Code "c02. Meta II of fig. 5, m[i03,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner. This may take a while, so wait for the "Done.".</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner</LI>
+</OL>
+So what just happened? Meta II's code reproduced itself from the high-level domain-specific input description of itself in the input window.
+It can do it over and over again by following the following steps.
+<OL>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click the "Compile" button in the lower left corner. This may take a while, so wait for the "Done.".</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner</LI>
+</OL>
+<BR><BR>
+Please take a moment to realize how amazing this is. The 29 line complex domain-specific input is compiled into 210 lines of pseudo assembly language
+output by the same 210 lines of low-level looking pseudo assembly language. 
+We will learn why this is something other than just a slick trick when we begin to change the compiler in the following
+sections. It's much easier to modify a concise high-level domain-specific description than modify an implementation 
+full of implementation details unrelated to the problem domain (i.e., compiling in this case).  
+<BR><BR>
+The "c02. Meta II of fig. 5, m[i03,c02]" Code select above is denoted by
+m[i03,c02] rather than the more general compiler notation c[i03,c02] to indicate that this combination generates a metacompiler a special subset of compilers.
+<BR><BR>
+Also notice META II description uses code pseudo assembly operators
+such as <CODE>ADR, TST, BF, CL</CODE> found in the code generating <CODE>.OUT</CODE> statements. We will discuss in detail what these
+operators do in the next step.
+<BR><BR>
+<A NAME="s05"></A>
+<B>Step 5. META II in detail</B>
+<BR><BR>
+Because the syntax rules of the META II description are independent we may reformat them any way we wish.
+Below are the rules of figure 5 of the META II paper shown above reorganized with some formatting to make them a bit more
+easy to read. This form is <i>top-down</i> where syntax rule definitions are used before defined
+rather than <i>bottom-up</i> where syntax rules are defined before use.
+In this form it's easier to see how this description compiles itself.
+<BR><BR>
+<B>Step 5.1 META II compiling itself</B>
+<BR><BR>
+The first line of the
+description <CODE>.SYNTAX PROGRAM</CODE> specifies <CODE>PROGRAM</CODE> as the first rule of a META II 
+description. The first thing the <CODE>PROGRAM</CODE> rule does is look for the literal string <CODE>'.SYNTAX'</CODE>
+(without the quotes) followed by a <CODE>.ID</CODE>, an identifier. 
+In the case of the input below the <CODE>PROGRAM</CODE> rule finds 
+the <CODE>PROGRAM</CODE> identifier after the <CODE>.SYNTAX</CODE>. So for this input description the
+first line output by the <CODE>PROGRAM</CODE> rule from it's code generation construct <CODE>.OUT('ADR ' *)</CODE> should
+be <CODE>ADR PROGRAM</CODE>. Knowing that
+<CODE>.LABEL *</CODE> outputs the most recently recognized identifier, number, or string against the
+left margin, can you guess what the second and third lines of output are? By the way - this is very hard.
+<BR><BR>
+<OL>
+<LI>Select Input "i04. Meta II syntax (i03 reordered)"</LI>
+<LI>Click the "Extract Syntax to Output" button in the lower left corner</LI>
+</OL>
+This should result in the following windows - again with perhaps different linebreaks.
+<BR><BR>
+<BR>
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Input</TH><TH>Output ("Extract Syntax to Output")</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID .OUT('ADR ' *)
+          $ ST
+          '.END' .OUT('END') .,
+
+ST = .ID .LABEL * '=' EX1 '.,' .OUT('R') .,
+
+EX1 = EX2 $('/' .OUT('BT ' *1) EX2 )
+      .LABEL *1 .,
+
+EX2 = (EX3 .OUT('BF ' *1) / OUTPUT)
+      $(EX3 .OUT('BE') / OUTPUT)
+      .LABEL *1 .,
+
+EX3 = .ID       .OUT('CLL '*) /
+      .STRING   .OUT('TST '*) /
+      '.ID'     .OUT('ID')    /
+      '.NUMBER' .OUT('NUM')   /
+      '.STRING' .OUT('SR')    /
+      '(' EX1 ')'             /
+      '.EMPTY'  .OUT('SET')   /
+      '$' .LABEL *1 EX3 .OUT('BT ' *1)
+          .OUT('SET') .,
+
+OUTPUT = ('.OUT' '('$OUT1 ')' /
+          '.LABEL' .OUT('LB') OUT1)
+         .OUT('OUT') .,
+
+OUT1 = '*1'    .OUT('GN1')  /
+       '*2'    .OUT('GN2')  /
+       '*'     .OUT('CI')   /
+       .STRING .OUT('CL '*) .,
+
+.END
+</PRE>
+</TD>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID $ST '.END' ;
+
+ST = .ID '=' EX1 '.,' ;
+
+EX1 = EX2 $( '/' EX2 ) ;
+
+EX2 = ( EX3 / OUTPUT )
+      $( EX3 / OUTPUT ) ;
+
+EX3 = .ID / .STRING / '.ID' /
+      '.NUMBER' / '.STRING' /
+      '(' EX1 ')' / '.EMPTY' /
+      '$' EX3 ;
+
+OUTPUT = ( '.OUT' '(' $OUT1 ')' /
+           '.LABEL' OUT1 ) ;
+
+OUT1 = '*1' / '*2' / '*' / .STRING ;
+
+.END
+</PRE>
+</TD>
+</TR>
+</TABLE>
+The META II Compiler Written in it's Own Language<BR>
+(Input is Top-Down version of figure 5 of <A HREF="#Schorre64">[Schorre64]</A>)
+</CENTER><BR>
+<BR><BR>
+Let's compile the above description using the original META II and find out if you figured out the second and third lines of output.
+<OL>
+<LI>Select the Input "i04. Meta II syntax (i03 reordered)"</LI>
+<LI>Select Code "c02. Meta II of fig. 5, m[i03,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner and wait for the "Done.".</LI>
+<LI>Check your guesses for the second and third output lines using the Output window</LI>
+</OL>
+<BR><BR>
+The second line of output is <CODE>PROGRAM</CODE> as a label against the left margin.
+It is output by the rule <CODE>ST</CODE> when the <CODE>.ID</CODE> construct recognizes the identifier <CODE>PROGRAM</CODE>
+at the beginning of the input line <CODE>PROGRAM = '.SYNTAX' .ID .OUT('ADR ' *)</CODE> and the rule <CODE>ST</CODE>
+code construct <CODE>.LABEL *</CODE> caused the recognized identifier to be output against the left margin.
+<BR><BR>
+The third line of output is <CODE>TST '.SYNTAX'</CODE> not against the left margin.
+It is output by the rule <CODE>EX3</CODE> as follows. 
+After the rule <CODE>ST</CODE> recognizes the <CODE>.ID</CODE> identifier <CODE>PROGRAM</CODE> (as above) 
+and removed it from the input leaving <CODE>= '.SYNTAX' .ID .OUT('ADR ' *)</CODE> remaining on the input line.
+The rule <CODE>ST</CODE> then recognizes the literal string <CODE>'='</CODE> and removes it from the input leaving
+<CODE>'.SYNTAX' .ID .OUT('ADR ' *)</CODE> as the input line. 
+Next the rule <CODE>ST</CODE> invokes the rule <CODE>EX1</CODE> which invokes the rule <CODE>EX2</CODE>
+which invokes the rule <CODE>EX3</CODE> which first tests the input line for <CODE>.ID</CODE>, an identifier.
+When no identifier is found the rule <CODE>EX3</CODE> then tests for <CODE>.STRING</CODE>, a string in quotes.
+The rule <CODE>EX3</CODE> does find the string <CODE>'.SYNTAX'</CODE> at the beginning of the input line. It
+removes it from the input leaving <CODE>.ID .OUT('ADR ' *)</CODE> as the input line. 
+The rule <CODE>EX3</CODE> recognition of the <CODE>.STRING</CODE> causes the output of the line <CODE>TST '.SYNTAX'</CODE>.
+The Output of Meta II compiling the <CODE>.SYNTAX</CODE> header and <CODE>PROGRAM</CODE> the first syntax rule is shown below.
+<BR><BR>
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Input</TH><TH>Output ("Compile")</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID .OUT('ADR ' *)
+          $ ST
+          '.END' .OUT('END') .,
+</PRE></TD>
+<TD ALIGN="LEFT">
+<PRE>
+	ADR PROGRAM
+PROGRAM
+	TST '.SYNTAX'
+	BF L1
+	ID
+	BE
+	CL 'ADR '
+	CI
+	OUT
+L2
+	CLL ST
+	BT L2
+	SET
+	BE
+	TST '.END'
+	BE
+	CL 'END'
+	OUT
+L1
+L3
+	R
+</PRE>
+</TD>
+</TR>
+</TABLE>
+META II Compiler Output for the <CODE>PROGRAM</CODE> Syntax Rule<BR>
+</CENTER>
+<BR><BR>
+Hopefully you can now look at the META II compiler description above and recognize that the construct <CODE>.OUT(*1)</CODE> will turn into
+an invocation of the <CODE>GN1</CODE> META II pseudo assembly language operator. But what do these pseudo assembly language operations mean?
+We will look at that in the next step.
+<BR><BR>
+<B>Step 5.2 META II order codes</B>
+<BR><BR>
+Below is a list of
+all of the operators of the META II parsing machine as given in <A HREF="#Schorre64">[Schorre64]</A>.
+These are called order codes just as the assembly
+language operations of a computer of that era were called. This is the language that appears in the Code window. 
+These are the op codes of the META II virtual machine. 
+<i>These are the objects and operations of the domain of META II compiling.</i>
+They are complete in themselves.
+To move Meta II to a different language these and only these are the objects and operations
+that must be implemented in the <i>target language</i>.
+<BR><BR>
+META II Order Codes (following figures 6.1 and 6.2 of <A HREF="#Schorre64">[Schorre64]</A>)
+<CENTER>
+<TABLE BORDER WIDTH="100%">
+<TR><TH WIDTH="10%">Mnemonic</TH><TH WIDTH="15%">Purpose</TH><TH>Actions</TH></TR>
+<TR><TD><B>TST 'string'</B></TD><TD>Test for string in input</TD><TD ALIGN="LEFT">After skipping initial whitespace in the input string
+compare it to the string given as argument. If the comparison is met, skip over the string in the input 
+and set switch. If not met, reset switch.</TD>
+<TR><TD><B>ID</B></TD><TD>Identifier token</TD><TD ALIGN="LEFT">After skipping initial whitespace in the input string,
+test if it begins with an identifier, i.e., a letter followed by a sequence of letters and/or digits. 
+If so, copy the identifier to the token buffer; skip over it in the input; and set switch. If not, reset switch.</TD></TR>
+<TR><TD><B>NUM</B></TD><TD>Number token</TD><TD ALIGN="LEFT">After deleting initial whitespace in the input string,
+test if it begins with an number, i.e., a sequence of digits.
+If so, copy the number to the token buffer; skip over it in the input; and set switch. If not, reset switch.</TD></TR>
+<TR><TD><B>SR</B></TD><TD>String token</TD><TD ALIGN="LEFT">After deleting initial whitespace in the input string,
+test if it begins with an string, i.e., a single quote followed by a sequence of any characters 
+other than a single quote followed by another single quote. 
+If so, copy the string (including enclosing quotes) to the token buffer; skip over it in the input; and set switch. 
+If not, reset switch.</TD></TR>
+<TR><TD><B>CLL AAA</B></TD><TD>Call subroutine</TD><TD ALIGN="LEFT">Enter the subroutine beginning at label AAA.
+Push a stackframe of three cells on the stack containing:
+<OL>
+<LI>label 1 cell, initialized to blank</LI>
+<LI>label 2 cell, initialized to blank</LI>
+<LI>location cell, set to the return from call location</LI>
+</OL>
+</TD></TR>
+<TR><TD><B>R</B></TD><TD>Return from subroutine</TD><TD ALIGN="LEFT">Return from CLL call to location on the top of the stack and pop
+the stackframe of three cells.</TD></TR>
+<TR><TD><B>SET</B></TD><TD>Set switch</TD><TD ALIGN="LEFT">Set the switch to true.</TD></TR>
+<TR><TD><B>B AAA</B></TD><TD>Unconditional branch</TD><TD ALIGN="LEFT">Branch unconditionally to the label AAA.</TD></TR>
+<TR><TD><B>BT AAA</B></TD><TD>Branch if true</TD><TD ALIGN="LEFT">If the switch is true, branch to label AAA.</TD></TR>
+<TR><TD><B>BF AAA</B></TD><TD>Branch if false</TD><TD ALIGN="LEFT">If the switch is false, branch to label AAA.</TD></TR>
+<TR><TD><B>BE</B></TD><TD>Branch to error if false</TD><TD ALIGN="LEFT">If the switch is false, report error status and halt.</TD></TR>
+<TR><TD><B>CL 'string'</B></TD><TD>Copy literal</TD><TD ALIGN="LEFT">Copy the variable length string (without enclosing quotes) given as
+argument to the output buffer.</TD></TR>
+<TR><TD><B>CI</B></TD><TD>Copy input</TD><TD ALIGN="LEFT">Copy the token buffer to the output buffer.</TD></TR>
+<TR><TD><B>GN1</B></TD><TD>Generate label 1</TD><TD ALIGN="LEFT">If the label 1 cell in the top stackframe is blank, then generate a unique label
+and save it in the label 1 cell. In either case output the label.</TD></TR>
+<TR><TD><B>GN2</B></TD><TD>Generate label 2</TD><TD ALIGN="LEFT">Same as for GN1 except acting on the label 2 cell.</TD></TR>
+<TR><TD><B>LB</B></TD><TD>Move to label field</TD><TD ALIGN="LEFT">Set the output buffer column to the first column.</TD></TR>
+<TR><TD><B>OUT</B></TD><TD>Output record</TD><TD ALIGN="LEFT">Output the output buffer with line terminator; clear it; 
+and set the output buffer column to the eighth column.</TD></TR>
+</TABLE>
+</CENTER>
+META II Pseudo Operations (following figure 6.3 of <A HREF="#Schorre64">[Schorre64]</A>)
+<CENTER>
+<TABLE BORDER WIDTH="100%">
+<TR><TH WIDTH="10%">Mnemonic</TH><TH WIDTH="15%">Purpose</TH><TH>Actions</TH></TR>
+<TR><TD><B>ADR AAA</B></TD><TD>Starting location</TD><TD ALIGN="LEFT">Pseudo operation that specifies the starting label to call.</TD></TR>
+<TR><TD><B>END</B></TD><TD>End of source</TD><TD ALIGN="LEFT">Pseudo operation that specifies the end of input.</TD></TR>
+</TABLE>
+</CENTER>
+<BR>
+As mentioned before the above order codes are all you need to implement in your favorite language to port the META II metacompiler.
+None of them are very hard to implement.
+Of course you will also need the translation of the META II compiler itself into the syntax of your favorite 
+language to call your order codes. We will do an example which translates the
+META II compiler into JavaScript and JavaScript objects later.
+At the end of these steps you should be able to:
+<OL>
+<LI>Define a compiler description that ejects your favorite language code</LI>
+<LI>Paste it into the Input window</LI>
+<LI>Have one of the compilers on these web pages generate the translation
+to your favorite language</LI>
+<LI>Cut the code generated in your favorite language from the Output window</LI>
+<LI>Continue compiler and metacompiler development in your favorite language</LI>
+</OL>
+<B>Step 5.3 "Stepping stone" compilers between metacompilers</B>
+<BR><BR>
+Is the compiler we described above by reordering the rules of META II a metacompiler?
+We can answer that question using the following steps.
+<OL>
+<LI>Select the Input "i04. Meta II syntax (i03 reordered)"</LI>
+<LI>Select Code "c02. Meta II of fig. 5, m[i03,c02]"</LI>
+<LI>Click the "Compile" button in the lower left corner and wait for the "Done.".</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner.
+    The Code and Output do not compare - so c[i04,c02] generated above is not a metacompiler by our textual comparison definition.
+    The Code and Output do not compare because the syntax rules are generated into the output in order - and the rule order between
+    the bottom-up i03 description which generated c02 and the top-down i04 description is different.
+</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click the "Compile" button in the lower left corner and wait for the "Done.".</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner. It does compare - so it is a metacompiler.</LI>
+<LI>Select Code "c03. Meta II reordered, c[i04,c02], m[i04,c03]"</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner.
+    It does compare - proving our new metacompiler has been named c03</LI>
+</OL>
+In the steps above we created the plain compiler c[i04,c02] as a stepping stone
+in going from the metacompiler m[i03,c02] to the metacompiler m[i04,c03].
+The steps above verified the first of the following two true equalities.
+Can you verify the second?
+<OL>
+<LI>c03 = m[i04,c03] = c[i04,c02] = c[i04,m[i03,c02]]</LI>
+<LI>c02 = m[i03,c02] = c[i03,c03] = c[i03,m[i04,c03]]</LI>
+</OL>
+This is the basic technique for enhancing a metacompiler.
+Admittedly in this case there is no real enhancement but we will show a true enhancement in the next section.
+<BR><BR>
+<A NAME="s06"></A>
+<B>Step 6. Making a syntax change</B>
+<BR><BR>
+Until now we really haven't extended the original META II. The compiler description i04 in the previous step
+is simply a reformatting and reorganization of i03 from figure 5 of the META II paper. In this step we are going
+to extend the original META II syntax in a simple way by changing the syntax rule terminator from
+<CODE>.,</CODE> to the more familiar <CODE>;</CODE> used in many languages.
+<BR><BR>
+To get a feel for extending the metacompiler syntax let's do something simple. To change the rule terminator
+from <CODE>.,</CODE> to the more familiar <CODE>;</CODE> used in many languages requires a single change
+of the i04 <CODE>ST</CODE> rule from<BR>
+<CODE>ST = .ID .LABEL * '=' EX1 '.,' .OUT('R').,</CODE><BR>
+to<BR>
+<CODE>ST = .ID .LABEL * '=' EX1 ';' .OUT('R').,</CODE><BR>
+Notice that we can't change the <CODE>.,</CODE> terminating the changed line to a semicolon because the
+current metacompiler c03 of the previous step doesn't understand semicolons as a line terminator yet.
+<BR><BR>
+The above i04 change has been made as i05. Lets build this compiler.
+<OL>
+<LI>Select the Input "i05. add semicolon line end"</LI>
+<LI>Select Code "c03. Meta II reordered, c[i04,c02], m[i04,c03]"</LI>
+<LI>Click the "Compile" button in the lower left corner and wait for the "Done.".</LI>
+</OL>
+What do you think? Is c[i05,c03] the resulting compiler a metacompiler? The output looks similar. Lets check in the usual way following the above steps.
+<OL>
+<LI>Click the "Compare Code and Output" button in the lower left corner.
+    The Code and Output do not compare - so c[i05,c03] generated above is not a metacompiler.
+    The Code and Output do not compare because the Output c[i05,c03] compiler from i05 is looking
+    for <CODE>;</CODE> terminated syntax rules
+    while the c03 compiler is looking for <CODE>.,</CODE> terminated syntax rules.
+</LI>
+</OL>
+Well perhaps, as with the previous step, c[i05,c03] is a stepping stone compiler. Let's check that.
+<OL>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click the "Compile" button in the lower left corner and wait for the "Done.".</LI>
+<LI>The above compile of c[i05,c[i05,c03]] fails with a syntax error where the
+    error <CODE>&lt;scan&gt;</CODE> marker points to the <CODE>.,</CODE> at the end
+    of the initial <CODE>PROGRAM</CODE> rule because this new compiler only accepts semicolons
+    at the end of rule descriptions. c[i05,c03] is looking for <CODE>;</CODE> terminated syntax rules
+    while the i05 input contains <CODE>.,</CODE> terminated syntax rules.
+</OL>
+So it looks like a modification of the syntax requires both a stepping stone compiler and
+an updated syntax to drive it. The c[i05,c03] compiler above is looking for <CODE>;</CODE> terminators.
+We just need an updated syntax to drive it.
+The Input i06 is i05 with all of the syntax rule terminators changed to <CODE>;</CODE>.
+<OL>
+<LI>Select the Input "i06. use semicolon line end"</LI>
+<LI>Click the "Compile" button in the lower left corner and wait for the "Done.".</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner. It does compare - so it is a metacompiler.</LI>
+<LI>Select Code "c04. Meta II semicolons, c[i05,c03], m[i06,c04]"</LI>
+<LI>Click the "Compare Code and Output" button in the lower left corner.
+    It does compare - proving our new metacompiler has been named c04</LI>
+</OL>
+In the steps above we changed the metacompiler syntax by:
+<OL>
+<LI>Making i05 from i04 that <i>recognizes</i> the new syntax for the existing c03 metacompiler.</LI>
+<LI>Creating the plain compiler c[i05,c03] as a stepping stone.</LI>
+<LI>Making i06 from i05 that <i>uses</i> the defined syntax.</LI>
+<LI>Validating that c04 is new expanded metacompiler made as c04 = c[i06,c[i05,c03]]</LI>
+</OL>
+The steps above verified the following equality.
+<OL>
+<LI>c04 = m[i06,c04] = c[i05,c03] = c[i05,m[i04,c03]]</LI>
+</OL>
+This is the basic technique for changing the syntax.
+
+<BR><BR>
+<A NAME="s07"></A>
+<B>Step 7. Making an output semantics change</B>
+<BR><BR>
+In this step we are going to change what the metacompiler
+actually does - it's operational <i>semantics</i>. We are going to change how Meta II formats output.
+<BR><BR>
+<B>Step 7.0 Format semantics requirements</B>
+<BR><BR>
+To specify these new semantics we first have to understand how the original META II provided output.
+In 1964 the idea of higher level languages (e.g., C and Java) was less than 10 years old. Much of
+Computer Science was focussed on how to compile ALGOL 60 to the assembly languages of a very wide
+variety of computers. The original META II output operators reflect this focus on assembly language.
+This represents the scope of the perceived META II <i>domain</i> in 1964.
+The META II <CODE>.OUT()</CODE> construct uses its arguments to output one assembly language line starting at the op
+code field. The META II <CODE>.LABEL</CODE> construct uses its single argument to output one assembly language line starting
+at the label field. In both cases labels were either a literal string, a scanned identifier, or a label generated by the
+<CODE>GN1</CODE> or <CODE>GN2</CODE> pseudo operations.
+<BR><BR>
+We have to change the above behavior for two reasons. One, we are no longer using only assembly language card
+formatting. We need to supply block structure indenting when necessary in addition to assembly language formatting.
+Two, we no longer know what form a label (either generated or scanned identifier)
+should take in the target language, so we must create
+labels in the compiler description. This means we need to be able to <i>splice tokens</i>
+to create unique identifiers and labels in the output compilers.
+<BR><BR>
+<B>Step 7.1 Define new syntax for format semantics change</B>
+<BR><BR>
+To meet these needs we redefine <CODE>.OUT()</CODE> and eliminate <CODE>.LABEL</CODE>.
+This new conceptual definition of <CODE>.OUT()</CODE> no longer corresponds
+to one output line. Instead <CODE>.OUT()</CODE> just provides a list of output producing constructs.
+First we have to modify the syntax of i06 to support these new needs
+by changing the i06 <CODE>OUT1</CODE> rule
+from
+<PRE>
+OUT1 = '*1'    .OUT('GN1') /
+       '*2'    .OUT('GN2') /
+       '*'     .OUT('CI')  /
+       .STRING .OUT('CL '*) .,
+</PRE>
+to
+<PRE>
+OUT1 = '*1'    .OUT('GN1') /
+       '*2'    .OUT('GN2') /
+       '*'     .OUT('CI') /
+       .STRING .OUT('CL '*) /
+       '#'     .OUT('GN') /
+       '.NL'   .OUT('NL') /
+       '.LB'   .OUT('LB') /
+       '.TB'   .OUT('TB') /
+       '.LM+'  .OUT('LMI') /
+       '.LM-'  .OUT('LMD') .,
+</PRE>
+Notice that the new <CODE>OUT1</CODE> rule only adds alternatives. It doesn't remove any. This is important because
+we need to be sure the metacompiler can still build itself.
+<BR><BR>
+These meaning of these new <CODE>OUT1</CODE> constructs is shown in the table below with their associated pseudo assembly op code.
+<CENTER>
+<TABLE BORDER >
+<TR><TH>.OUT construct</TH><TH>Mnemonic</TH><TH>Purpose</TH><TH>Actions</TH></TR>
+<TR><TD><B>'#'</B></TD><TD><B>GN</B></TD><TD>unique number</TD><TD ALIGN="LEFT">If the label 1 cell in the top stackframe is blank, then generate a unique number
+and save it in the label 1 cell. In either case output the label.</TD></TR>
+<TR><TD><B>'.NL'</B></TD><TD><B>NL</B></TD><TD>Newline</TD><TD ALIGN="LEFT">Flush output buffer with ending newline and move to left margin.</TD></TR>
+<TR><TD><B>'.LB'</B></TD><TD><B>LB</B></TD><TD>Label field</TD><TD ALIGN="LEFT">Move to output column 1.</TD></TR>
+<TR><TD><B>'.TB'</B></TD><TD><B>TB</B></TD><TD>Tab</TD><TD ALIGN="LEFT">Move to the next tab stop.</TD></TR>
+<TR><TD><B>'.LM+'</B></TD><TD><B>LMI</B></TD><TD>Left margin increase</TD><TD ALIGN="LEFT">Increase the left margin, indenting block.</TD></TR>
+<TR><TD><B>'.LM-'</B></TD><TD><B>LMD</B></TD><TD>Left margin decrease</TD><TD ALIGN="LEFT">Decrease the left margin, outdenting block.</TD></TR>
+</TABLE>
+</CENTER>
+The margin commands <CODE>'.LM+'</CODE> and <CODE>'.LM-'</CODE> just increment or decrement a margin counter.
+The margin itself gets inserted as spaces just before the next string output after a <CODE>'.NL'</CODE>.
+The margin counter defaults to zero. A negative or zero margin count results in no indenting. The margin
+commands in this tutorial add or subtract 2 columns to the margin. 
+<BR><BR>
+Lets make the metacompiler with the extended <CODE>OUT1</CODE> syntax. How do we know offhand that it will be a metacompiler?
+Because we started with i06 the description of c04 = m[i06,c04] a metacompiler and we only <i>extended</i> the syntax without deleting
+any as shown above. The extended version of i06 is i07.
+<BR><BR>
+Let's compile this compiler.
+<OL>
+<LI>Select Input "i07. add new output control"</LI>
+<LI>Select Code "c04. Meta II semicolons, c[i05,c03], m[i06,c04]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Click "Compare Code and Output" It does not compare because c[i07,c04] recognizes the extended syntax.</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile"</LI>
+<LI>Click "Compare Code and Output" It does compare so c[i07,c[i07,c04]] is a metacompiler.</LI>
+<LI>Select Code "c05. accept new output, c[i07,c04], m[i07,c05]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c05 is the name of the new metacompiler.</LI>
+</OL>
+From the above steps we know the first equality below. You can verify the second. It is because the syntax of i06 is a subset of i07.
+<OL>
+<LI>c05 = m[i07,c05] = c[i07,c[i07,c04]]</LI>
+<LI>c04 = m[i06,c04] = c[i06,c[i06,c05]]</LI>
+</OL>
+<B>Step 7.2 Remove replaced format syntax and semantics</B>
+<BR><BR>
+Since we are using our new constructs, we can eliminate old constructs (and their underlying pseudo assembly operations).
+In particular the <CODE>OUTPUT</CODE> rule construct <CODE>.LABEL</CODE> and the <CODE>OUT1</CODE> rule
+constructs <CODE>*1</CODE> and <CODE>*2</CODE> are no longer needed.
+Ultimately their underlying pseudo assembly operations <CODE>LB</CODE>, <CODE>GN1</CODE>,
+and <CODE>GN2</CODE> will also not be required.
+Below is i08 the complete compiler recognizing the new constructs and not recognizing the old constructs.
+Notice that i08 is a stepping stone syntax because it cannot possibly create a metacompiler. As an example it uses the
+construct <CODE>.LABEL</CODE> but cannot recognize that syntax. The compiler resulting from i08 exists only to eliminate
+the older syntax while using the older syntax.
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID .OUT('ADR ' *)
+          $ ST 
+          '.END' .OUT('END') ;
+
+ST = .ID .LABEL * '=' EX1 ';' .OUT('R') ;
+
+EX1 = EX2 $('/' .OUT('BT ' *1) EX2 )
+      .LABEL *1 ;
+
+EX2 = (EX3 .OUT('BF ' *1) / OUTPUT)
+      $(EX3 .OUT('BE') / OUTPUT)
+      .LABEL *1 ;
+
+EX3 = .ID       .OUT('CLL '*) /
+      .STRING   .OUT('TST '*) /
+      '.ID'     .OUT('ID')    /
+      '.NUMBER' .OUT('NUM')   /
+      '.STRING' .OUT('SR')    /
+      '(' EX1 ')'             /
+      '.EMPTY'  .OUT('SET')   /
+      '$' .LABEL *1 EX3 .OUT('BT ' *1) .OUT('SET') ;
+
+OUTPUT = '.OUT' '('$OUT1 ')' ;
+
+OUT1 = '*'     .OUT('CI')   / 
+       .STRING .OUT('CL '*) /
+       '#'     .OUT('GN')   /
+       '.NL'   .OUT('NL')   /
+       '.LB'   .OUT('LB')   /
+       '.TB'   .OUT('TB')   /
+       '.LM+'  .OUT('LMI')  /
+       '.LM-'  .OUT('LMD')  ;
+
+.END
+</PRE>
+Let's compile this stepping stone compiler.
+<OL>
+<LI>Select Input "i08. delete old output control"</LI>
+<LI>Select Code "c05. accept new output, c[i07,c04], m[i07,c05]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Select Code "c06. reject old output, c[i08,c05]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c06 is the name of the stepping stone.</LI>
+</OL>
+So now what? We have a new stepping stone c06 that recognizes the syntax of the
+new semantics and can generate the new pseudo ops but we don't have any inputs that
+use this new syntax.
+<BR><BR>
+<B>Step 7.3 Use the new format semantics</B>
+<BR><BR>
+As with the extension of syntax we did previously our extension of semantics and syntax
+requires us to rewrite the input to use our new syntax to link to our new semantic pseudo operations.
+Using these new constructs we can restate the metacompiler i08. As an example
+<PRE>
+EX1 = EX2 $('/' .OUT('BT ' *1) EX2 )
+      .LABEL *1 ;
+</PRE>
+becomes
+<PRE>
+EX1 = EX2 $('/' .OUT('BT L'# ) EX2 )
+      .OUT(.LB 'L'# ) ;
+</PRE>
+using a compatible new definition. The above example shows the use of <CODE>#</CODE> with <i>token splicing</i> to generate unique alpha-numeric label names
+and the use of <CODE>.LB</CODE> to put to names into the assembly label field.
+Below is i09 which is i08 rewritten using our new syntax and semantics.
+It uses our new constructs to simulate what META II originally did by default.
+Explicit formatting over implicit formatting naturally makes the description a bit more complex.
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID .OUT(.LB .TB 'ADR ' * .NL)
+          $ ST
+          '.END' .OUT(.TB 'END' .NL) ;
+
+ST = .ID .OUT(.LB * .NL) '=' EX1 ';' .OUT(.TB 'R' .NL) ;
+
+EX1 = EX2 $('/' .OUT(.TB 'BT L'# .NL) EX2 )
+      .OUT(.LB 'L'# .NL) ;
+
+EX2 = (EX3 .OUT(.TB 'BF L'# .NL) / OUTPUT)
+      $(EX3 .OUT(.TB 'BE' .NL) / OUTPUT)
+      .OUT(.LB 'L'# .NL) ;
+
+EX3 = .ID       .OUT(.TB 'CLL '* .NL) /
+      .STRING   .OUT(.TB 'TST '* .NL) /
+      '.ID'     .OUT(.TB 'ID' .NL)    /
+      '.NUMBER' .OUT(.TB 'NUM' .NL)   /
+      '.STRING' .OUT(.TB 'SR' .NL)    /
+      '(' EX1 ')'                     /
+      '.EMPTY'  .OUT(.TB 'SET' .NL)   /
+      '$' .OUT(.LB 'L'# .NL) EX3 .OUT(.TB 'BT L'# .NL) .OUT(.TB 'SET' .NL) ;
+
+OUTPUT = '.OUT' '('$OUT1 ')' ;
+
+OUT1 = '*'     .OUT(.TB 'CI' .NL)   /
+       .STRING .OUT(.TB 'CL '* .NL) /
+       '#'     .OUT(.TB 'GN' .NL)   /
+       '.NL'   .OUT(.TB 'NL' .NL)   /
+       '.LB'   .OUT(.TB 'LB' .NL)   /
+       '.TB'   .OUT(.TB 'TB' .NL)   /
+       '.LM+'  .OUT(.TB 'LMI' .NL)  /
+       '.LM-'  .OUT(.TB 'LMD' .NL)  ;
+
+.END
+</PRE>
+So lets build this new metacompiler.
+<OL>
+<LI>Select Input "i09. use new output control"</LI>
+<LI>Select Code "c06. reject old output, c[i08,c05]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile"</LI>
+<LI>Click "Compare Code and Output" It does compare so c[i09,c[i09,c06]] is a metacompiler.</LI>
+<LI>Select Code "c07. use new output, c[i09,c06], m[i09,c07]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c07 is the name of the new metacompiler.</LI>
+</OL>
+The above steps above verify the equality below.
+<OL>
+<LI>c07 = m[i09,c07] = c[i09,c[i08,c05]]</LI>
+</OL>
+Our new ability to format block structure output will be used in the next step.
+<BR><BR>
+<B>Step 7.4 Visualizing the metacompiler "boot" process</B>
+<BR><BR>
+The equivalence statements at the end of all the steps we have done so far can
+be formed into a graph. In the diagram below the different codes are shown as circles
+and the arcs from one circle to another is the input that compiled with the code
+at the base of the arc creates the code at the arrowhead terminated part of the arc.
+It's easy to see the metacompilers. They are the codes that have an arc from
+themselves to themselves indicating they can reproduce themselves from an input
+description. The "stepping stone" compilers are codes like c06 with one input
+and one output between two metacompilers.
+<CENTER>
+<IMG SRC="mc1_1.gif" ALT="[steps to compiler c07]">
+</CENTER>
+<BR><BR>
+<A NAME="s08"></A>
+<B>Step 8. Making an implementation language change</B>
+<BR><BR>
+Now we have finer output controls and the ability to splice tokens in the output to make new identifiers and labels, we
+can define output for a block structured language such as JavaScript which runs in the web browser.
+Below is i10 a modification of i09 where JavaScript replaces the META II pseudo assembly code.
+The recognized syntax for i09 and i10 is the same as can be show by the following steps:
+<OL>
+<LI>Select Input "i09. use new output control"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i10. convert i09 to js functions"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click "Compare Code and Output" The two syntax specifications compare.</LI>
+</OL>
+In the following i10 description we use the left margin modifiers
+<CODE>.LM+</CODE> and <CODE>.LM-</CODE> to indent the blocks of functions, if statements, and while statements. Also each
+of the pseudo assembly language statements is converted into a function call that sets a global boolean <CODE>flag</CODE> variable
+(e.g., the META II pseudo assembly <CODE>TST '.SYNTAX'</CODE> is simply turned into the JavaScript function <CODE>runTST('.SYNTAX');</CODE>.
+Further there is a lot of explicit <i>runtime support</i> that had been previously hidden in these web pages.
+As an example <CODE>outbuf</CODE> the output buffer is explicitly declared in the <CODE>PROGRAM</CODE> rule.
+At the end of this tutorial there will be no hidden <i>runtime support</i> at all. The Output window will contain
+all the code needed to implement the compiler in JavaScript. For now don't worry about the runtime details just examine the overall
+structure of the description. The syntax is just like i09 but with JavaScript code generation rather than
+Meta II pseudo assembly code generation.
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID
+            .OUT(.LB '// '*' compiler' .NL)
+            .OUT('function compiler (input) {' .LM+ .NL)
+            .OUT('inbuf = input ;' .NL)
+            .OUT('inp = 0 ;' .NL)
+            .OUT('outbuf = "" ;' .NL)
+            .OUT('margin = 0 ;' .NL)
+            .OUT('gnlabel = 1 ;' .NL)
+            .OUT('rule'*'() ;' .NL)
+            .OUT('return outbuf ;' .NL)
+            .OUT(.LM- '} ;' .NL .NL)
+          $ ST
+          '.END' ;
+
+ST = .ID .OUT(.LB 'function rule'*' () {' .LM+ .NL)
+     .OUT('var rname = "'*'" ;' .NL)
+     .OUT('var rlabel = 0 ;' .NL)
+     '=' EX1 ';'
+     .OUT(.LM- '} ;' .NL .NL) ;
+
+EX1 = EX2 $('/' .OUT('if (!flag) {' .LM+ .NL) EX2 .OUT(.LM- '} ;' .NL) ) ;
+
+EX2 = (EX3 .OUT('if (flag) {' .LM+ .NL) / OUTPUT .OUT('if (true) {' .LM+ .NL) )
+      $(EX3 .OUT('if (!flag) runBEjsfn(rname);' .NL) / OUTPUT)
+      .OUT(.LM- '} ;' .NL) ;
+
+EX3 = .ID       .OUT('rule'*'();' .NL) /
+      .STRING   .OUT('runTST('*');' .NL) /
+      '.ID'     .OUT('runID();' .NL)     /
+      '.NUMBER' .OUT('runNUM();' .NL)    /
+      '.STRING' .OUT('runSR();' .NL)     /
+      '(' EX1 ')'                        /
+      '.EMPTY'  .OUT('runSET();' .NL)    /
+      '$' .OUT('runSET();' .NL)
+          .OUT('while (flag) {' .LM+ .NL)
+           EX3 
+          .OUT('};' .LM- .NL) 
+          .OUT('runSET();' .NL) ;
+
+OUTPUT = '.OUT' '('$OUT1 ')' ;
+
+OUT1 = '*'     .OUT('runCI();' .NL)    /
+       .STRING .OUT('runCL('*');' .NL) /
+       '#'     .OUT('if (rlabel == 0) { rlabel = gnlabel; gnlabel++ ; } ;' .NL)
+               .OUT('runCL(rlabel.toString());' .NL) /
+       '.NL'   .OUT('runextNL();' .NL)    /
+       '.LB'   .OUT('runLB();' .NL)    /
+       '.TB'   .OUT('runextTB();' .NL)    /
+       '.LM+'  .OUT('runextLMI();' .NL)   /
+       '.LM-'  .OUT('runextLMD();' .NL)   ;
+
+.END
+</PRE>
+So let's build this new metacompiler through a stepping stone.
+<OL>
+<LI>Select Input "i10. convert i09 to js functions"</LI>
+<LI>Select Code "c07. use new output, c[i09,c06], m[i09,c07]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Select Code "c08. compile to js functions, c[i10,c07]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c08 = c[i10,c07] is the stepping stone.</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile"</LI>
+<LI>Click "Compare Code and Output" It does compare so c[i10,c[i10,c07]] is a metacompiler.</LI>
+<LI>Select Code "c07jf. compile to js functions, c[i10,c08], m[i10,c07jf]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c07 is the name of the new metacompiler.</LI>
+</OL>
+Notice above that we chose to call the new JavaScript metacompiler c07jf because
+the syntax and semantics it accepts and operates on are the same as c07 - only
+the hidden implementation is different.
+So just as we built c07jf from c07 we can build c07 from c07jf with the following
+steps.
+<OL>
+<LI>Select Input "i09. use new output control"</LI>
+<LI>Select Code "c07jf. compile to js functions, c[i10,c08], m[i10,c07jf]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile"</LI>
+<LI>Select Code "c07. use new output, c[i09,c06], m[i09,c07]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c07 is the built compiler.</LI>
+</OL>
+After all the goal of the original 1964 META II work to be able to easily generate
+compatible compilers for a wide variety of implementing technologies.
+<BR><BR>
+<A NAME="s09"></A>
+<B>Step 9. Comparing implementations</B>
+<BR><BR>
+The table below breaks out the <CODE>EX2</CODE> Input syntax rule to highlight
+the differences and techniques used in the two different implementations. The
+<i>domain specific role</i> of the <CODE>EX2</CODE> syntax rule is to enforce
+the definition of <i>sequence</i> the AND specification of syntactic constructs.
+As presented before in this <i>domain-specific language</i>
+in a construct such as <CODE>(A1 A2 ... An / B1 B2 ... Bn)</CODE>
+the <CODE>A1 A2 ... An</CODE> syntax represents a <i>sequence</i> where if <CODE>A1</CODE>
+is recognized then <CODE>A2 ... An</CODE> must also be recognized or an error occurs
+and compiling stops. The syntax for <CODE>EX2</CODE> uses the recognizer
+<CODE>(EX3 / OUTPUT)</CODE> for the members of the <i>sequence</i> in recognition
+that code generating <CODE>OUTPUT</CODE> members of the sequence are defined by the
+<i>domain</i> not to recognize anything and always to succeed.
+<BR><BR>
+The pseudo assembly uses a lot of labels while the JavaScript functions use a lot of nesting.
+There is also a lot of similar looking inefficient code between the two (e.g., the pseudo assembly
+<CODE>BF L18</CODE> when <CODE>L18</CODE> is on the next line or the JavaScript
+<CODE>if (flag) { } ;</CODE>). These come from general code templates say for a <i>sequence</i>
+allowing multiple members being used on a sequence with only one member.
+<i>Domain-specific optimizing transformation</i> may be used to remove these but we will
+not cover those in this tutorial. Suffice it to say this general output can be highly optimized.  
+
+<CENTER>
+<TABLE BORDER>
+<TR><TH>i09 and i10 complete syntax</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID $ST '.END' ;
+ST = .ID '=' EX1 ';' ;
+EX1 = EX2 $( '/' EX2 ) ;
+EX2 = (EX3 / OUTPUT)
+      $(EX3 / OUTPUT) ;
+EX3 = .ID / .STRING /
+      '.ID' / '.NUMBER' / '.STRING' /
+      '(' EX1 ')' / '.EMPTY' / '$' EX3 ;
+OUTPUT = '.OUT' '(' $OUT1 ')' ;
+OUT1 = '*' / .STRING / '#' / '.NL' /
+       '.LB' / '.TB' / '.LM+' / '.LM-' ;
+
+.END</PRE>
+</TD>
+</TR>
+</TABLE>
+<TABLE BORDER>
+<TR><TH>i09 EX2 for pseudo assembly</TH><TH>i10 EX2 for JavaScript function</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+EX2 = (EX3 .OUT(.TB 'BF L'# .NL) /
+       OUTPUT)
+      $(EX3 .OUT(.TB 'BE' .NL) /
+        OUTPUT)
+      .OUT(.LB 'L'# .NL) ;
+</PRE>
+</TD>
+<TD ALIGN="LEFT">
+<PRE>
+EX2 = (EX3 .OUT('if (flag) {' .LM+ .NL) /
+       OUTPUT .OUT('if (true) {' .LM+ .NL) )
+      $(EX3 .OUT('if (!flag) runBEjsfn(rname);' .NL) /
+        OUTPUT)
+      .OUT(.LM- '} ;' .NL) ;
+</PRE>
+</TD>
+</TR>
+<TR><TH>c07 pseudo assembly EX2 code</TH><TH>c07jf JavaScript function EX2 code</TH></TR>
+<TR>
+<TD ALIGN="LEFT">
+<PRE>
+EX2
+	CLL EX3
+	BF L11
+	TB
+	CL 'BF L'
+	GN
+	NL
+L11
+	BT L12
+	CLL OUTPUT
+	BF L13
+L13
+L12
+	BF L14
+L15
+	CLL EX3
+	BF L16
+	TB
+	CL 'BE'
+	NL
+L16
+	BT L17
+	CLL OUTPUT
+	BF L18
+L18
+L17
+	BT L15
+	SET
+	BE
+	LB
+	CL 'L'
+	GN
+	NL
+L14
+L19
+	R
+</PRE>
+</TD>
+<TD ALIGN="LEFT">
+<PRE>
+function ruleEX2 () {
+  var rname = "EX2" ;
+  var rlabel = 0 ;
+  ruleEX3();
+  if (flag) {
+    runCL('if (flag) {');
+    runextLMI();
+    runextNL();
+  } ;
+  if (!flag) {
+    ruleOUTPUT();
+    if (flag) {
+      runCL('if (true) {');
+      runextLMI();
+      runextNL();
+    } ;
+  } ;
+  if (flag) {
+    runSET();
+    while (flag) {
+      ruleEX3();
+      if (flag) {
+        runCL('if (!flag) runBEjsfn(rname);');
+        runextNL();
+      } ;
+      if (!flag) {
+        ruleOUTPUT();
+        if (flag) {
+        } ;
+      } ;
+      };
+    runSET();
+    if (!flag) runBEjsfn(rname);
+    runextLMD();
+    runCL('} ;');
+    runextNL();
+  } ;
+} ;
+</PRE>
+</TD>
+</TR>
+</TABLE>
+Comparing pseudo assembly and JavaScript function code for EX2 rule
+</CENTER><BR>
+Some features completely unrelated to the problem domain have been added to the
+JavaScript implementation. As an example consider the definition of the rule name
+added to each function (<CODE>var rname = "EX2" ;</CODE> above). It is only there so
+that halts on errors (<CODE>BE</CODE> in the pseudo assembly and
+<CODE>runBEjsfn</CODE> in the JavaScript code) can report the name of the rule
+causing the error stop.
+
+<BR><BR>
+<A NAME="s10"></A>
+<B>Step 10. Making a token semantics change</B>
+<BR><BR>
+In this step we are going to change the metacompiler semantics again.
+We are going to change how tokens are defined.
+<BR><BR>
+<B>Step 10.0 Token requirements</B>
+<BR><BR>
+Up to this point all of the compilers we have made have relied upon built-in
+<i>tokens</i> as personified in the syntax by <CODE>.ID</CODE> an identifier (pseudo op <CODE>ID</CODE>),
+<CODE>.NUMBER</CODE> an number (pseudo op <CODE>NUM</CODE>), and
+<CODE>.STRING</CODE> a singly quoted string (pseudo op <CODE>SR</CODE>).
+Implicitly we have also relied on a definition of <i>whitespace</i> that separates these <i>tokens</i> and
+<i>literal strings</i>.
+<BR><BR>
+We have to change the above behavior for one simple reason. If we are implementing a standard
+compiler for a language that was not defined by ourselves, the token and whitespace
+definitions are just not up to ourselves. We will need the flexibility to describe a
+language's tokens without rewriting the token code all the time.
+<BR><BR>
+<B>Step 10.1 Define new syntax for token semantics change</B>
+<BR><BR>
+We make the simple observation that the following <i>domain-specific constructs</i>
+have allowed us to combine the <i>tokens</i> <CODE>.ID</CODE>, <CODE>.NUMBER</CODE>,
+and <CODE>.STRING</CODE> in flexible ways to recognize syntax rules.
+Why shouldn't the same constructs allow us to combine individual characters in flexible ways
+to recognize token rules?
+<BR><BR>
+<CENTER>
+<TABLE BORDER>
+<TR><TH>Construct</TH><TH>Meaning</TH><TH>Concept Name</TH></TR>
+<TR><TD>string in single quotes</TD><TD>recognize the given string</TD><TD><i>literal string</i></TD></TR>
+<TR><TD>rule name</TD><TD>recognize the given syntax rule</TD><TD><i>invocation</i></TD></TR>
+<TR><TD><CODE>A / B</CODE></TD><TD>recognize A or B</TD><TD><i>alternation</i> (OR)</TD></TR>
+<TR><TD><CODE>A B</CODE></TD><TD>recognize A and B</TD><TD><i>sequence</i> (AND)</TD></TR>
+<TR><TD><CODE>.EMPTY</CODE></TD><TD>recognize nothing, always succeed</TD><TD><i>option</i> (NOT)</TD></TR>
+<TR><TD><CODE>$A</CODE></TD><TD>repeat A until not recognized</TD><TD><i>iteration</i></TD></TR>
+<TR><TD><CODE>(A B)</CODE></TD><TD>group recognition constructs</TD><TD><i>precedence</i></TD></TR>
+</TABLE>
+</CENTER>
+<BR><BR>
+To meet these needs we need to define two types of syntax rules. Character rules
+determine what set of characters they will accept. Token rules determine how the
+characters accepted may be formed into tokens. The new syntax for TR, token rules,
+should look familiar. The TX rules are token rules and the CX rules are character rules.
+<PRE>
+TR = .ID ':' TX1 ';' ;
+TX1 = TX2 $('/' TX2 ) ;
+TX2 = TX3 $ TX3 ;
+TX3 = '.TOKEN' / '.DELTOK' / '$' TX3 /
+      '.ANYBUT(' CX1 ')' / '.ANY(' CX1 ')' / .ID / '(' TX1 ')' ;
+CX1 = CX2 $( '!' CX2 ) ;
+CX2 = CX3 ( ':' CX3 / .EMPTY ) ;
+CX3 = .NUMBER ;
+</PRE>
+The above syntax allows for TR definitions such as those shown below
+<PRE>
+ID     : .TOKEN ALPHA $(ALPHA / DIGIT) .DELTOK ;
+NUMBER : .TOKEN DIGIT $DIGIT .DELTOK ;
+ALPHA  : .ANY(65:90!97:122) ;
+DIGIT  : .ANY(48:57) ;
+</PRE>
+where the numbers are the ASCII character codes.
+The syntax <CODE>.ANY(65:90!97:122)</CODE> means accept any upper case alphabetic
+ASCII character (character codes 65 through 90) or any lower case alphabetic
+ASCII character (character codes 97 through 122).
+<BR><BR>
+<B>Step 10.2 Make a stepping stone between old and new token semantics</B>
+<BR><BR>
+First we have to extend the syntax of i09 to support these new needs.
+As before with semantics changes we are building a stepping stone compiler.
+Two of the constructs we are trying to eliminate (<CODE>.ID</CODE> and <CODE>.NUMBER</CODE>) are
+used to define our new token definitions.
+<BR><BR>
+Below is the entire definition of i11 made from i09
+by redefining PR from ST to indicate parse rules, TR to indicate token rules,
+adding the TX token rules, and adding the CX character rules.
+Also a <CODE>.NUMBER</CODE> alternative has been added to the existing
+<CODE>OUT1</CODE> rule to be able to output a character using its numerical character code.
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' .ID .OUT(.LB .TB 'ADR ' * .NL)
+          $ PR  
+          '.TOKENS'
+          $ TR
+          '.END' .OUT(.TB 'END' .NL) ;
+
+PR = .ID .OUT(.LB * .NL) '=' EX1 ';' .OUT(.TB 'R' .NL) ; 
+
+TR = .ID .OUT(.LB * .NL) ':' TX1 ';' .OUT(.TB 'R' .NL) ;
+
+EX1 = EX2 $('/' .OUT(.TB 'BT L'# .NL) EX2 )
+      .OUT(.LB 'L'# .NL) ;
+
+EX2 = (EX3 .OUT(.TB 'BF L'# .NL) / OUTPUT)
+      $(EX3 .OUT(.TB 'BE' .NL) / OUTPUT)
+      .OUT(.LB 'L'# .NL) ;
+
+EX3 = .ID       .OUT(.TB 'CLL '* .NL) /
+      .STRING   .OUT(.TB 'TST '* .NL) /
+      '.ID'     .OUT(.TB 'ID' .NL)    /
+      '.NUMBER' .OUT(.TB 'NUM' .NL)   /
+      '.STRING' .OUT(.TB 'SR' .NL)    /
+      '(' EX1 ')'                     /
+      '.EMPTY'  .OUT(.TB 'SET' .NL)   /
+      '$' .OUT(.LB 'L'# .NL) EX3 .OUT(.TB 'BT L'# .NL) .OUT(.TB 'SET' .NL) ;
+
+OUTPUT = '.OUT' '('$OUT1 ')' ;
+
+OUT1 = '*'     .OUT(.TB 'CI' .NL)   /
+       .STRING .OUT(.TB 'CL '* .NL) /
+       .NUMBER .OUT(.TB 'CC '* .NL) /
+       '#'     .OUT(.TB 'GN' .NL)   /
+       '.NL'   .OUT(.TB 'NL' .NL)   /
+       '.LB'   .OUT(.TB 'LB' .NL)   /
+       '.TB'   .OUT(.TB 'TB' .NL)   /
+       '.LM+'  .OUT(.TB 'LMI' .NL)  /
+       '.LM-'  .OUT(.TB 'LMD' .NL)  ;
+
+TX1 = TX2 $('/' .OUT(.TB 'BT T'# .NL) TX2) 
+      .OUT(.LB 'T'# .NL) ;
+
+TX2 = TX3 .OUT(.TB 'BF T'# .NL)
+      $(TX3 .OUT(.TB 'RF' .NL) )
+      .OUT(.LB 'T'# .NL) ;
+
+TX3 = ( '.TOKEN'         .OUT(.TB 'TFT' .NL) /
+        '.DELTOK'        .OUT(.TB 'TFF' .NL) /
+        '$' .OUT(.LB 'T'# .NL) TX3 .OUT(.TB 'BT T'# .NL) ) 
+                         .OUT(.TB 'SET' .NL)               /
+      '.ANYBUT(' CX1 ')' .OUT(.TB 'NOT' .NL .TB 'SCN' .NL) /
+      '.ANY(' CX1 ')'    .OUT(.TB 'SCN' .NL)               /
+      .ID                .OUT(.TB 'CLL ' * .NL)            /
+      '(' TX1 ')'                                          ;
+            
+CX1 = CX2 $('!' .OUT(.TB 'BT C'# .NL) CX2) .OUT(.LB 'C'# .NL) ;
+CX2 = CX3 (':' .OUT(.TB 'CGE ' * .NL) .OUT(.TB 'BF D'# .NL) 
+               CX3
+               .OUT(.TB 'CLE ' * .NL) .OUT(.LB 'D' # .NL) /
+           .EMPTY .OUT(.TB 'CE ' * .NL)                   ) ;
+CX3 = .NUMBER ;
+
+.END
+</PRE>
+The above pseudo assembly description adds pseudo operators primarily in the TX and CX rules for token scanning.
+It doesn't remove any pseudo operators or syntax. Once again this is important because
+we need to be sure the existing metacompiler can build this description.
+The location, mnemonic, and meaning of these new pseudo operators is shown in the table below.
+<BR><BR><BR>
+<CENTER>
+<TABLE BORDER >
+<TR><TH>Rule</TH><TH>Mnemonic</TH><TH>Purpose</TH></TR>
+<TR><TD><B>OUT1</B></TD><TD><B>CC number</B></TD><TD>copy char code to output</TD></TR>
+<TR><TD><B>TX2</B></TD><TD><B>RF</B></TD><TD>return from rule if parse flag false</TD></TR>
+<TR><TD><B>TX3</B></TD><TD><B>TFT</B></TD><TD>set token flag true and clear token</TD></TR>
+<TR><TD><B>TX3</B></TD><TD><B>TFF</B></TD><TD>set token flag false</TD></TR>
+<TR><TD><B>TX3</B></TD><TD><B>NOT</B></TD><TD>parse flag set to not parse flag</TD></TR>
+<TR><TD><B>TX3</B></TD><TD><B>SCN</B></TD><TD>if parse flag, scan input character; if token flag, add to token</TD></TR>
+<TR><TD><B>CX2</B></TD><TD><B>CGE number</B></TD><TD>parse flag set to input char code >= number</TD></TR>
+<TR><TD><B>CX2</B></TD><TD><B>CLE number</B></TD><TD>parse flag set to input char code <= number</TD></TR>
+<TR><TD><B>CX2</B></TD><TD><B>CE number</B></TD><TD>parse flag set to input char code = number</TD></TR>
+<TR><TD><B>EX3 of i12</B></TD><TD><B>LCH number</B></TD><TD>set parse flag, place char code as a string in token buffer</TD></TR>
+</TABLE>
+</CENTER>
+Let's make the stepping stone compiler with the extended syntax. The extended version of i09 is i11.
+<OL>
+<LI>Select Input "i11. add token rules to i09"</LI>
+<LI>Select Code "c07. use new output, c[i09,c06], m[i09,c07]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Select Code "c09. accept tokens, c[i11,c07]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c09 is the name of the stepping stone.</LI>
+</OL>
+From the above steps we know the first equality below.
+<OL>
+<LI>c09 = c[i11,c07]</LI>
+</OL>
+So now what? We have a new stepping stone c09 that recognizes the syntax of the
+new semantics and can generate the new pseudo ops but we don't have any inputs that
+use this new syntax.
+<BR><BR>
+<B>Step 10.3 Use the new token semantics</B>
+<BR><BR>
+Since we are using our new constructs, we can eliminate old constructs (and their underlying pseudo assembly operations).
+In particular all reference to and usage of the built-in tokens <CODE>.ID</CODE> an identifier (pseudo op <CODE>ID</CODE>),
+<CODE>.NUMBER</CODE> an number (pseudo op <CODE>NUM</CODE>), and
+<CODE>.STRING</CODE> a singly quoted string (pseudo op <CODE>SR</CODE>) must be replaced with compatible token definitions.
+Further we have also relied on an implicit definition of <i>whitespace</i> that separates these <i>tokens</i> and
+<i>literal strings</i>. To meet this need we define a specially named token rule <CODE>PREFIX</CODE> to be used
+to explicitly define whitespace before any literal string recognition. Below are the compatible token definitions to replace the
+built-in tokens we have been using.
+<PRE>
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10) ;
+ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK ;
+NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK ;
+STRING : PREFIX .ANY(39) .TOKEN $.ANYBUT(13!10!39) .DELTOK .ANY(39) ;
+ALPHA  : .ANY(65:90!97:122) ;
+DIGIT  : .ANY(48:57) ;
+
+.END
+</PRE>
+
+Below is i12 an updated i11 the complete compiler recognizing the new constructs and not recognizing the old constructs.
+Largely the changes consist of adding the above token definitions,
+renaming all token references (i.e., <CODE>.ID</CODE> becomes <CODE>ID</CODE>) and
+eliminating the recognition of the built-in tokens in <CODE>EX3</CODE> (e.g., <CODE>'.ID'</CODE> is no longer recognized).
+This means that i12 should create a metacompiler because it can recognize it's own syntax.
+Note that we have added a new built-in token <CODE>.LITCHR</CODE> in <CODE>EX3</CODE> which can recognize any one character and place the
+decimal numeric string of its character code in the token buffer. This will become useful in the next section when we discuss
+building compilers that use character sets other than ASCII.
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' ID .OUT(.LB .TB 'ADR ' * .NL)
+          $ PR  
+          '.TOKENS'
+          $ TR
+          '.END' .OUT(.TB 'END' .NL) ;
+
+PR = ID .OUT(.LB * .NL) '=' EX1 ';' .OUT(.TB 'R' .NL) ; 
+
+TR = ID .OUT(.LB * .NL) ':' TX1 ';' .OUT(.TB 'R' .NL) ;
+
+EX1 = EX2 $('/' .OUT(.TB 'BT L'# .NL) EX2 )
+      .OUT(.LB 'L'# .NL) ;
+
+EX2 = (EX3 .OUT(.TB 'BF L'# .NL) / OUTPUT)
+      $(EX3 .OUT(.TB 'BE' .NL) / OUTPUT)
+      .OUT(.LB 'L'# .NL) ;
+
+EX3 = ID        .OUT(.TB 'CLL '* .NL)        /
+      STRING    .OUT(.TB 'TST ' 39 * 39 .NL) /
+      '(' EX1 ')'                            /
+      '.EMPTY'  .OUT(.TB 'SET' .NL)          /
+      '.LITCHR' .OUT(.TB 'LCH' .NL)          /
+      '$' .OUT(.LB 'L'# .NL) EX3 .OUT(.TB 'BT L'# .NL) .OUT(.TB 'SET' .NL) ;
+
+OUTPUT = '.OUT' '('$OUT1 ')' ;
+
+OUT1 = '*'     .OUT(.TB 'CI' .NL)          /
+       STRING  .OUT(.TB 'CL ' 39 * 39 .NL) /
+       NUMBER  .OUT(.TB 'CC '* .NL)        /
+       '#'     .OUT(.TB 'GN' .NL)          /
+       '.NL'   .OUT(.TB 'NL' .NL)          /
+       '.LB'   .OUT(.TB 'LB' .NL)          /
+       '.TB'   .OUT(.TB 'TB' .NL)          /
+       '.LM+'  .OUT(.TB 'LMI' .NL)         /
+       '.LM-'  .OUT(.TB 'LMD' .NL)         ;
+
+TX1 = TX2 $('/' .OUT(.TB 'BT T'# .NL) TX2) 
+      .OUT(.LB 'T'# .NL) ;
+
+TX2 = TX3 .OUT(.TB 'BF T'# .NL)
+      $(TX3 .OUT(.TB 'RF' .NL) )
+      .OUT(.LB 'T'# .NL) ;
+
+TX3 = ( '.TOKEN'         .OUT(.TB 'TFT' .NL) /
+        '.DELTOK'        .OUT(.TB 'TFF' .NL) /
+        '$' .OUT(.LB 'T'# .NL) TX3 .OUT(.TB 'BT T'# .NL) ) 
+                         .OUT(.TB 'SET' .NL)               /
+      '.ANYBUT(' CX1 ')' .OUT(.TB 'NOT' .NL .TB 'SCN' .NL) /
+      '.ANY(' CX1 ')'    .OUT(.TB 'SCN' .NL)               /
+      ID                 .OUT(.TB 'CLL ' * .NL)            /
+      '(' TX1 ')'                                          ;
+            
+CX1 = CX2 $('!' .OUT(.TB 'BT C'# .NL) CX2) .OUT(.LB 'C'# .NL) ;
+CX2 = CX3 (':' .OUT(.TB 'CGE ' * .NL) .OUT(.TB 'BF D'# .NL) 
+               CX3
+               .OUT(.TB 'CLE ' * .NL) .OUT(.LB 'D' # .NL) /
+           .EMPTY .OUT(.TB 'CE ' * .NL)                   ) ;
+CX3 = NUMBER ;
+
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10) ;
+ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK ;
+NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK ;
+STRING : PREFIX .ANY(39) .TOKEN $.ANYBUT(13!10!39) .DELTOK .ANY(39) ;
+ALPHA  : .ANY(65:90!97:122) ;
+DIGIT  : .ANY(48:57) ;
+
+.END
+</PRE>
+So lets build this new metacompiler.
+<OL>
+<LI>Select Input "i12. use token rules"</LI>
+<LI>Select Code "c09. accept tokens, c[i11,c07]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile"</LI>
+<LI>Click "Compare Code and Output" It does compare so c[i12,c09] is a metacompiler.</LI>
+<LI>Select Code "c10. use tokens, c[i12,c09], m[i12,c10]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c10 is the built metacompiler.</LI>
+</OL>
+The above steps above verify the first equality below in expanding metacompiler c07 to c10.
+Since the c07jf metacompiler is functionally equivalent to c07 we can also expand that series.
+Can you verify the second equality for the series implemented as JavaScript functions?
+<OL>
+<LI>c10 = m[i12,c10] = c[i12,c09] = c[i12,c[i11,c07]]</LI>
+<LI>c10jf = m[i12jf,c10jf] = c[i12jf,c09jf] = c[i12jf,c[i11jf,c07jf]]</LI>
+</OL>
+As metacompilers c07 and c07jf were functionally equivalent so are c10 and c10jf.
+The following steps can verify the equivalence of their syntax.
+<OL>
+<LI>Select Input "i12. use token rules"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i12jf. use token rules"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click "Compare Code and Output" The two syntax specifications compare.</LI>
+</OL>
+You can also verify the following equalities that these metacompilers can cross compile each other.
+<OL>
+<LI>c10 = m[i12,c10] = c[i12,c[i12,c10jf]</LI>
+<LI>c10jf = m[i12jf,c10jf] = c[i12jf,c[i12jf,c10]]</LI>
+</OL>
+<BR>
+<B>Step 10.4 A note about efficiency</B>
+<BR><BR>
+As you verify the above equalities you may note that the JavaScript function
+implementation is much faster than the pseudo assembly implementation.
+JavaScript is an interpreter implemented in the browser.
+The pseudo assembly implementation is an inefficient but clear interpreter
+implemented by us over the browser JavaScript interpreter.
+We will provide links to all these codes later in this tutorial.
+The point of this comment is to dispel any fears that metacompiling is
+inherently slow. Once ported to a compiled implementation language or
+native assembly language it is fast
+enough to compile or scan millions of lines quickly. We've done it.  
+<BR><BR>
+<B>Step 10.5 Visualizing building and using compatible metacompilers</B>
+<BR><BR>
+Once again the equivalence statements from the steps creating
+two compatible metacompilers c10 and c10jf with different implementations from
+the single c07 metacompiler may be visualized. In this diagram the small circles
+are anonymous "stepping stone" codes represented in the Metacompiler Workshop by the
+"Copy Output to Code" button and in equalities such as c07 = c[i09,c[i09,c07jf]]. 
+<CENTER>
+<IMG SRC="mc1_2.gif" ALT="[steps from c07 to compiler c10]">
+</CENTER>
+<BR><BR>
+<A NAME="s11"></A>
+<B>Step 11. Making input language semantics change</B>
+<BR><BR>
+The semantics changes in this step are niceties to reinforce once again the
+rhythm of how the metacompilers are expanded to allow new capabilities.
+<BR><BR>
+<B>Step 11.0 Comment and language requirements</B>
+<BR><BR>
+As the c10 series metacompiler stands now there are no comments in the
+input and tokens are described using ASCII numeric character codes.
+<BR><BR>
+I hardly need to rationalize the need for comments - especially if you have
+looked at the long input forms of this tutorial without a single comment.
+We needed token definitions and whitespace <CODE>PREFIX</CODE> definition
+of the last step to create good comment definitions.
+<BR><BR>
+If we wanted to build a compiler that could compile (or scan) source
+defined in Unicode characters (say web pages), then our choice to use only
+ASCII character codes to define tokens is limiting.
+This is true even though ASCII is a subset of Unicode. Further looking up
+ASCII codes is error prone. Why not just put in the character you want? In
+step 10.3 we added <CODE>.LITCHR</CODE> to i12 which accepts the current input
+character and places its numeric value as a string in the token buffer.
+Notice its definition is independent of the size the character code. 
+<CODE>.LITCHR</CODE> allows for the definition of tokens in the character
+coding system used to define the input. 
+<BR><BR>
+<B>Step 11.1 Define new syntax for comment and language semantics change</B>
+<BR><BR>
+We will be modifying the i12 syntax to provide these changes in i13.
+The new and changed i13 rules are given below.
+<PRE>
+.SYNTAX
+PROGRAM = '.SYNTAX' ID $(PR / COMMENT) '.TOKENS' $(TR / COMMENT) '.END' ;
+COMMENT = '[' CMLINE ']' ;
+CX3 = NUMBER / SQUOTE .LITCHR ;
+.TOKENS
+SQUOTE : PREFIX .ANY(39) ;
+CMLINE : .TOKEN $.ANYBUT(10!13!93) .DELTOK ;
+.END
+</PRE>
+Basically the <CODE>PROGRAM</CODE> rule is changed to accept a <CODE>COMMENT</CODE>
+anywhere a parse rule or token rule is acceptable. A <CODE>COMMENT</CODE> is
+defined to be any characters except linefeed (10), return (13), and right
+square bracket (93) enclosed in square brackets.
+The <CODE>CX3</CODE> rule which currently specifies character codes gets another alternative
+which allows token character code specification with a single quote and the character itself.
+The above syntax allows definitions such as those below.
+<PRE>
+[ alphabetic characters ]
+ALPHA  : .ANY('A:'Z!'a:'z) ;
+[ numeral characters ]
+DIGIT  : .ANY('0:'9) ;
+</PRE>
+where the character codes are taken from the input character code using the <CODE>.LITCHR</CODE>
+(pseudo op code <CODE>LCH</CODE>).
+<BR><BR>
+<B>Step 11.2 Make a stepping stone between old and new comment and language semantics</B>
+<BR><BR>
+Lets make the stepping stone compiler with the extended syntax. The extended version of i12 is i13.
+<OL>
+<LI>Select Input "i13. add comments and litchr to i12"</LI>
+<LI>Select Code "c10. use tokens, c[i12,c09], m[i12,c10]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Select Code "c11. accept comments, c[i13,c10]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c11 is the name of the stepping stone.</LI>
+</OL>
+From the above steps we know the first equality below.
+<OL>
+<LI>c11 = c[i13,c10]</LI>
+</OL>
+So with a new stepping stone c11 that recognizes the syntax of the
+new semantics and can generate the new pseudo ops we can prepare inputs that
+use this new syntax.
+<BR><BR>
+<B>Step 11.3 Use the new comment and language semantics</B>
+<BR><BR>
+So lets build this new metacompiler.
+<OL>
+<LI>Select Input "i14. use comments and litchr"</LI>
+<LI>Select Code "c11. accept comments, c[i13,c10]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile"</LI>
+<LI>Click "Compare Code and Output" It does compare so c[i14,c11] is a metacompiler.</LI>
+<LI>Select Code "c12. use comments, c[i14,c11], m[i14,c12]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c12 is the built metacompiler.</LI>
+</OL>
+The above steps above verify the first equality below in expanding metacompiler c10 to c12.
+Since the c10jf metacompiler is functionally equivalent to c10 we can also expand c10jf
+to make a compatible c12jf metacompiler.
+Can you verify the second equality for the series implemented as JavaScript functions?
+<OL>
+<LI>c12 = m[i14,c12] = c[i14,c11] = c[i14,c[i13,c10]]</LI>
+<LI>c12jf = m[i14jf,c12jf] = c[i14jf,c11jf] = c[i14jf,c[i13jf,c10jf]]</LI>
+</OL>
+As metacompilers c10 and c10jf were functionally equivalent so are c12 and c12jf.
+The equivalence of their syntax can be verified by the following steps.
+<OL>
+<LI>Select Input "i14. use token rules"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i14jf. use token rules"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click "Compare Code and Output" The two syntax specifications compare.</LI>
+</OL>
+You can also verify the following equalities that these metacompilers can cross compile each other.
+<OL>
+<LI>c12 = m[i14,c12] = c[i14,c[i14,c12jf]</LI>
+<LI>c12jf = m[i14jf,c12jf] = c[i14jf,c[i14jf,c12]]</LI>
+</OL>
+or we could say
+<OL>
+<LI>c12 = m[i14,c12] = c[i14,c[i14,c12*]</LI>
+<LI>c12jf = m[i14jf,c12jf] = c[i14jf,c[i14jf,c12*]]</LI>
+</OL>
+where c12* indicates any c12 series metacompiler.
+<BR><BR>
+<A NAME="s12"></A>
+<B>Step 12. Making an object implementation</B>
+<BR><BR>
+Building the compilers so far has relied on a lot of "behind the scenes" support
+for the generated code. The pseudo assembly style of META II used relies on a interpreter
+implemented in JavaScript. The JavaScript function code relies on <i>runtime</i> functions
+implemented in JavaScript (e.g., <CODE>runCLL</CODE>). In this step we are going to generate
+a completely contained JavaScript object that requires no external support.
+<BR><BR>
+<B>Step 12.0 Object requirements</B>
+<BR><BR>
+All of the <i>runtime</i> support routines must be folded into the object definition
+along with the ability to provide error information on failures. The implementation
+must be simple and clear enough to allow for its adoption in any object-oriented language.
+<BR><BR>
+The object implementation generates a single object called <CODE>compiler</CODE>.
+You will need to rename it depending on the environment in which it is placed.
+The <CODE>compiler</CODE> object supports one public function <CODE>compile</CODE>
+that takes one argument <CODE>input</CODE> the string to compile.
+<CODE>compile</CODE> returns a boolean value indicating the success of the compilation.
+On a successful compilation the public string variable <CODE>outbuf</CODE> contains the
+compiled output. If the compilation fails the following information
+in public variables is available:
+<OL>
+<LI><CODE>erule</CODE> - string, the name of the parse or token rule that failed</LI>
+<LI><CODE>einput</CODE> - number, the index into the <CODE>input</CODE> that failed</LI>
+<LI><CODE>token</CODE> - string, the last token successfully recognized</LI>
+<LI><CODE>outbuf</CODE> - string, the collected output before the failure</LI>
+</OL>
+<BR>
+<B>Step 12.1 Define new syntax for wholly contained object semantics change</B>
+<BR><BR>
+The JavaScript object definition i14js is derived from the JavaScript function
+definition i14jf. There is no real change in the recognized syntax. However the
+old scheme of extracting the syntax and simply comparing will not work because we have added two
+rules <CODE>PREAMBLE</CODE> and <CODE>POSTAMBLE</CODE>. These rules consist
+only of <CODE>.OUT</CODE> statements providing <i>architecture</i> and <i>runtime</i>.
+They embody the kinds of properties and methods that would be found in a base <i>abstract object</i>
+from which a collection of compiler objects could be descended. However in this case we've chosen
+to create a wholly contained object for each compiler.
+The <CODE>PREAMBLE</CODE> code connects the object to the outside world by defining the <CODE>compile</CODE> function.
+The <CODE>POSTAMBLE</CODE> code defines the variable and runtime support functions.
+These would be private definitions in a hierarchical object.
+The following steps can prove the accepted syntax has not changed.
+<OL>
+<LI>Select Input "i14jf. use token rules"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i14js. convert i14jf to js object"</LI>
+<LI>Click "Extract Syntax to Output" button in the lower left corner</LI>
+<LI>Manually delete <CODE>PROGRAM</CODE> rule references to rules <CODE>PREAMBLE</CODE> and <CODE>POSTAMBLE</CODE>.
+<LI>Manually delete rules <CODE>PREAMBLE</CODE> and <CODE>POSTAMBLE</CODE>
+<LI>Click "Compare Code and Output" The two syntax specifications compare.</LI>
+</OL>
+The Input description i14js seems large but remember it is carrying all the runtime for all compilers
+that can be generated by it. 
+<BR><BR>
+<B>Step 12.2 Build the new metacompiler</B>
+<BR><BR>
+Because there has been no change in syntax or function in i14js only a change in implementation, then we can just boot this
+new c12js metacompiler the same way we built c12jf. This time lets use c12jf as it's faster and any c12 series will do.
+<OL>
+<LI>Select Input "i14js. convert i14jf to js object"</LI>
+<LI>Select Code "c12jf. use comments, c[i14jf,c11jf], m[i14jf,c12jf]"</LI>
+<LI>Click "Compile" (create stepping stone)</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile" (use stepping stone, create c12js metacompiler)</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile" (use c12js metacompiler)</LI>
+<LI>Click "Compare Code and Output" It does compare so c[i14js,c[i14js,c12jf] is a metacompiler.</LI>
+<LI>Select Code "c12js. use comments, c[i14js,c[i14js,c12jf]] m[i14js,c12js]"</LI>
+<LI>Click "Compare Code and Output" It does compare so c12js is the built metacompiler.</LI>
+</OL>
+So restating and adding to the equalities of the previous step. We now have thee members of the c12
+series of metacompilers. For one of them, c12js, you have the complete description i14js and output code.
+<OL>
+<LI>c12 = m[i14,c12] = c[i14,c[i14,c12*]</LI>
+<LI>c12jf = m[i14jf,c12jf] = c[i14jf,c[i14jf,c12*]]</LI>
+<LI>c12js = m[i14js,c12js] = c[i14js,c[i14js,c12*]]</LI>
+</OL>
+Where the c12* indicates any c12 series metacompiler.
+<BR><BR>
+<B>Step 12.3 Visualizing cross compiling metacompilers</B>
+<BR><BR>
+The diagram below visualizes the effort to develop and maintain compatible cross
+compiling metacompilers. Even though it looks complex there are really only three
+versions of i14 - one for each platform supported. The diagram also shows the
+final semantics extension we will make to the c12js metacompiler in the next step of this first tutorial.
+<CENTER>
+<IMG SRC="mc1_3.gif" ALT="[steps from c10 to compiler c15js]">
+</CENTER>
+<A NAME="s13"></A>
+<B>Step 13. Adding backtracking semantics</B>
+<BR><BR>
+Some of the previous input has been cleverly written to avoid limitations.
+We will demonstrate and discuss an example of this and show how a new semantics can
+remove the limitation.
+<BR><BR>
+<B>Step 13.0 Backtracking and error handling requirements</B>
+<BR><BR>
+The idea of backtracking is that under certain circumstances the compiler backtracks
+and re-reads part or all of the input string. It is related to error handling in that
+the compiler may use backtracking to re-read an input containing a
+syntax error such as a source line, place it into an error message, 
+and then continue on compiling effectively ignoring the erroneous line.
+<BR><BR>
+Some languages require the declaration of functions before they can be referenced.
+This requires the simplest kind of backtracking namely multiple <i>passes</i> over
+the source file for different reasons. This can easily be accommodated in our
+i15js description by adding a <CODE>.PASS</CODE> primitive to the <CODE>EX3</CODE>
+parse rule which resets the input position back to the beginning of the input string.
+<PRE>
+'.PASS'   .OUT('this.inp = 0 ;' .NL)  /
+</PRE>
+The need for a more subtle form of backtracking may be demonstrated by
+extending i02 the arithmetic expression compiler AEXP to include some relational
+and shift operators as might be found in most general purpose languages. After adding
+the new formatting and the new <CODE>RX</CODE> parse rules we might create i02a
+as given below.
+<PRE>
+.SYNTAX AEXP
+
+AEXP = AS $AS ;
+AS = ID .OUT(.TB 'address ' * .NL) ':=' EX1 .OUT(.TB 'store' .NL) ';' ;
+RX1 = RX2 ('='  RX2 .OUT(.TB 'eq' .NL) /
+           '<'  RX2 .OUT(.TB 'lt' .NL) /
+           '>'  RX2 .OUT(.TB 'gt' .NL) /
+           '<=' RX2 .OUT(.TB 'le' .NL) /
+           '>=' RX2 .OUT(.TB 'ge' .NL) /
+           .EMPTY) ;
+RX2 = '~' EX0 .OUT(.TB 'not' .NL) / EX0 ;
+EX0 = EX1 ('<-' EX1 .OUT(.TB 'shl' .NL) /
+           '->' EX2 .OUT(.TB 'shr' .NL) /
+           .EMPTY) ;
+EX1 = EX2 $('+' EX2 .OUT(.TB 'add' .NL) /
+            '-' EX2 .OUT(.TB 'sub' .NL) ) ;
+EX2 = EX3 $('*' EX3 .OUT(.TB 'mpy' .NL) /
+            '/' EX3 .OUT(.TB 'div' .NL) ) ;
+EX3 = EX4 $('^' EX3 .OUT(.TB 'exp' .NL)) ;
+EX4 = '+' EX5 / '-' EX5 .OUT(.TB 'minus' .NL) / EX5 ;
+EX5 = ID  .OUT(.TB 'load ' * .NL) /
+      NUMBER .OUT(.TB 'literal ' * .NL) /
+      '(' EX1 ')' ;
+
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10) ;
+ID     : PREFIX .TOKEN .ANY('A:'Z!'a:'z) $(.ANY('A:'Z!'a:'z) / .ANY('0:'9)) .DELTOK ;
+NUMBER : PREFIX .TOKEN .ANY('0:'9) $.ANY('0:'9) .DELTOK ;
+
+.END
+</PRE>
+First lets test that this new i02a AEXP compiler can compile i01 our original set of assignment expressions.
+<OL>
+<LI>Select Input "i02a. demo, AEXP example assignment compiler"</LI>
+<LI>Select Code "c12js. use comments, c[i14js,c[i14js,c12jf]] m[i14js,c12js]"</LI>
+<LI>Click "Compile" (create AEXP compiler)</LI>
+<LI>Select Code "c01ajs. demo, AEXP compile assignments c[i02a,c12js]"</LI>
+<LI>Click "Compare Code and Output" It does compare, so c01ajs = c[i02a,c12js].</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i01. demo, AEXP example assignments"</LI>
+<LI>Click "Compile" (use AEXP on demo assignments)</LI>
+<LI>Select Code "c00. demo, compiled assignments c[i01,c01]"</LI>
+<LI>Click "Compare Code and Output" It does compare, so i02a can do the old demo.</LI>
+</OL>
+Now lets test the new relational operators by adding assignments to the end of i01
+to make i01a below:
+<PRE>
+fern:=5+6;
+ace:=fern*5;
+waldo:=fern+alpha/-beta^gamma;
+fern:=5<=6;
+ace:=fern*5>=bob;
+waldo:=fern<-alpha<=beta->gamma;
+</PRE>
+Now try compiling these new operators.
+<OL>
+<LI>Select Input "i01a. demo, AEXP2 backup value assignments"</LI>
+<LI>Select Code "c01ajs. demo, AEXP compile assignments c[i02a,c12js]"</LI>
+<LI>Click "Compile" (use AEXP on demo assignments)</LI>
+</OL>
+The compile reports the syntax error "<CODE>fern:=5<&lt;scan&gt;=6;</CODE>".
+Why was there a syntax error? It is because the <CODE>RX1</CODE> alternative
+<CODE>'<'  RX2 .OUT(.TB 'lt' .NL) /</CODE> was tested before the
+<CODE>'<=' RX2 .OUT(.TB 'le' .NL) /</CODE> alternative.
+The literal string <CODE>'<'</CODE> was matched and the <CODE>RX2</CODE>
+next in the sequence failed to match <CODE>=</CODE> forcing a syntax error.
+We could <i>reorder</i> the alternatives of <CODE>RX1</CODE> as follows to
+solve this problem by checking for the larger literal string first.
+<PRE>
+RX1 = RX2 ('='  RX2 .OUT(.TB 'eq' .NL) /
+           '<=' RX2 .OUT(.TB 'le' .NL) /
+           '>=' RX2 .OUT(.TB 'ge' .NL) /
+           '<'  RX2 .OUT(.TB 'lt' .NL) /
+           '>'  RX2 .OUT(.TB 'gt' .NL) /
+           .EMPTY) ;
+</PRE>
+Alternatively we could <i>factor</i> the definitions of <CODE>RX1</CODE> as follows.
+<PRE>
+RX1 = RX2 ('='         RX2 .OUT(.TB 'eq' .NL) /
+           '<' ('='    RX2 .OUT(.TB 'le' .NL) /
+                .EMPTY RX2 .OUT(.TB 'lt' .NL) ) /
+           '>' ('='    RX2 .OUT(.TB 'ge' .NL) /
+                .EMPTY RX2 .OUT(.TB 'gt' .NL) ) /
+           .EMPTY) ;
+</PRE>
+Note that the above definition would allow whitespace between the two character
+relational operators (e.g., <CODE>A < = B</CODE>) and that may or may not be desirable.
+It depends on the specification of the language you are implementing or designing.
+<BR><BR>
+Let's try out one of the above <CODE>RX1</CODE> definitions.
+<OL>
+<LI>Select Input "i02a. demo, AEXP example assignment compiler"</LI>
+<LI>Copy one of the above <CODE>RX1</CODE> definitions and paste it over the i02a <CODE>RX1</CODE> definition</LI>
+<LI>Select Code "c12js. use comments, c[i14js,c[i14js,c12jf]] m[i14js,c12js]"</LI>
+<LI>Click "Compile" (create AEXP compiler)</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i01a. demo, AEXP2 backup value assignments"</LI>
+<LI>Click "Compile" (use AEXP on demo assignments)</LI>
+</OL>
+Once again the compile reports a syntax error but this time it is on a different
+source line "<CODE>waldo:=fern<-alpha<=beta-&lt;scan&gt;>gamma;</CODE>".
+So our rewrite of <CODE>RX1</CODE> worked but there is more work to do.
+What caused this syntax error? The rule <CODE>EX2</CODE> recognized the literal
+string <CODE>'-'</CODE> as subtraction when we really wanted the literal string
+<CODE>'->'</CODE> to be recognized as a right shift in rule <CODE>EX0</CODE>.
+We want the precedence of the 'right shift' operator <CODE>'->'</CODE> to be lower
+precedence than the 'subtraction' operator <CODE>'-'</CODE> but higher precedence than the
+'less than' relational operator <CODE>'<='</CODE>. These precedence relations enforce that
+<CODE>waldo:=fern<-alpha<=beta->gamma</CODE> means <CODE>waldo:=(fern<-alpha)<=(beta->gamma)</CODE>
+Can we use either <i>reorder</i> or <i>factor</i> to eliminate the problem while
+maintaining the precedence relationships? We can't.
+<BR><BR>
+Further we've introduced a
+problem in the syntax itself. The statement <CODE>fern<-alpha</CODE> compiled
+without error as <CODE>fern</CODE> left shifted by <CODE>alpha</CODE> but it could also
+mean <CODE>fern<(-alpha)</CODE>. In fact since unary minus is the highest precedence operator
+one would think the second might be the preferred choice. This is an <i>ambiguous syntax</i>
+and is best avoided by careful language design.
+<BR><BR>
+To solve this problem we need to relax the meaning
+of a <i>sequence</i> inside of an <i>alternation</i>.
+This means we need some syntax construct that in
+certain cases allows a <i>sequence</i> to scan some input and fail to
+recognize the rest of the sequence but not fail with a syntax error.
+This is called <i>backup parsing</i> because it requires the parser to backup
+in the input string to the place when the failed <i>sequence</i> started. In
+fact the whole state of the compiler (e.g., input position, output position, token
+buffer, and margin) needs to be restored.
+<BR><BR>
+<B>Step 13.1 Define new syntax for backtracking</B>
+<BR><BR>
+We will be modifying i14js to make i15js. We are going to change the
+syntax of rule <CODE>EX3</CODE> from
+<PRE>EX3 = ID / STRING / '(' EX1 ')' / '.EMPTY' / '.LITCHR' / '$' EX3 ;</PRE>
+to
+<PRE>
+EX3 = ID / STRING / '(' EX1 ')' / '.EMPTY' / '.LITCHR' /
+      '.PASS' / '$' EX3 / '[' EX1 $( '|' EX1 ) ']' ;</PRE>
+The meaning of the syntax construct <CODE>[ A | B | ... | Z ]</CODE> is as follows:
+<OL>
+<LI>If <CODE>A</CODE> succeeds, then the syntax construct succeeds.</LI>
+<LI>If <CODE>A</CODE> fails, then <CODE>B | ... | Z </CODE> is the value of the syntax construct.</LI>
+<LI>If <CODE>A</CODE> causes a syntax error, then
+<OL>
+<LI>the input position backs up to the point where <CODE>A</CODE> started</LI>
+<LI>the output position backs up to the point where <CODE>A</CODE> started</LI>
+<LI>the token buffer backs up to the value it had when <CODE>A</CODE> started</LI>
+<LI>the margin backs up to the value it had when <CODE>A</CODE> started</LI>
+<LI><CODE>B | ... | Z </CODE> is attempted to be recognized</LI>
+</OL>
+</LI>
+<LI>If all of the alternatives fail or cause a syntax error, then everything
+is backed up to when <CODE>A</CODE> started and the construct fails.
+</OL>
+This syntax construct will allow us an easy rewrite the AEXP compiler of i02a
+into the AEXP2 of i02b. The rewrite of the rules <CODE>RX1</CODE> and
+<CODE>EX1</CODE> are shown below:
+<PRE>
+RX1 = RX2 ['='  RX2 .OUT(.TB 'eq' .NL) |
+           '<'  RX2 .OUT(.TB 'lt' .NL) |
+           '>'  RX2 .OUT(.TB 'gt' .NL) |
+           '<=' RX2 .OUT(.TB 'le' .NL) |
+           '>=' RX2 .OUT(.TB 'ge' .NL) |
+           .EMPTY] ;
+
+EX1 = EX2 $['+' EX2 .OUT(.TB 'add' .NL) |
+            '-' EX2 .OUT(.TB 'sub' .NL) ] ;
+</PRE>
+Notice that the rewrite of these two rules does nothing to remove the
+<i>ambiguous syntax</i> syntax problem. The code <CODE>alpha<-5</CODE> will
+be assigned the meaning <CODE>alpha</CODE> shifted left by <CODE>5</CODE>.
+It is a very poor syntax.
+<BR><BR>
+<B>Step 13.2 Implementation of backtracking</B>
+<BR><BR>
+The backup positions are kept on the stack and in the implementation presented below
+cannot be nested in a single rule. The <CODE>pflag</CODE> <i>parse flag</i>
+continues to indicate the success of the parse.
+A new <CODE>eflag</CODE> <i>error flag</i> is defined to indicate the presence
+of a syntax error. The <i>alternation</i> of <CODE>EX1</CODE>,
+the <i>sequence</i> of <CODE>EX2</CODE>, the <i>iteration</i> of <CODE>EX3</CODE>,
+and the <i>backtrack</i> of <CODE>EX3</CODE>,
+all must consider the <CODE>eflag</CODE> in their flow of control.
+The backtrack requires new runtime functions that set the backtrack point (<CODE>bkset</CODE>),
+restore the backtrack point (<CODE>bkrestore</CODE>), and clear the backtrack point (<CODE>bkclear</CODE>).
+<BR><BR>
+Below are the major i15js changes to the i14js JavaScript object definition.
+<PRE>
+[ parsing expressions ]
+EX1 = EX2 $('/' .OUT('if ((!this.pflag) && (!this.eflag)) {' .LM+ .NL)
+                EX2
+                .OUT(.LM- '} ;' .NL) ) ;
+
+EX2 = (EX3 .OUT('if (this.pflag) {' .LM+ .NL) /
+       OUTPUT .OUT('if (true) {' .LM+ .NL) )
+      .OUT('while (!this.eflag) {' .LM+ .NL)
+      $(EX3 .OUT('if (!this.pflag) this.bkerr();' .NL)
+            .OUT('if (this.eflag) break ;' .NL) /
+        OUTPUT)
+      .OUT(.LM- 'break }' .NL)
+      .OUT(.LM- '} ;' .NL) ;
+
+EX3 = ID        .OUT('this.ctxpush(' 39 * 39 ') ;' .NL)
+                .OUT('this.rule' * '() ;' .NL)
+                .OUT('this.ctxpop() ;' .NL) /
+      STRING    .OUT('this.test(' 39 * 39 ');' .NL) /
+      '(' EX1 ')'                            /
+      '.EMPTY'  .OUT('this.pflag = true ;' .NL)    /
+      '.LITCHR' .OUT('this.token = this.inbuf.charCodeAt(this.inp) ;' .NL)
+                .OUT('this.inp++ ;' .NL)  /
+      '.PASS'   .OUT('this.inp = 0 ;' .NL)  /
+      '$' .OUT('this.pflag = true ;' .NL)
+          .OUT('while (this.pflag & !this.eflag) {' .LM+ .NL)
+           EX3 
+          .OUT('};' .LM- .NL) 
+          .OUT('this.pflag = !this.eflag ;' .NL) /
+      '[' .OUT('this.bkset() ;' .NL)
+          EX1
+          $('|' .OUT('if (!this.pflag) {' .LM+ .NL)
+                .OUT('if (this.eflag) this.bkrestore() ;' .NL)
+                EX1
+                .OUT(.LM- '} ;' .NL) )
+      ']' .OUT('if (this.eflag) this.bkrestore() ;' .NL)
+          .OUT('this.bkclear() ;' .NL) ;
+</PRE>
+<B>Step 13.3 Build the compiler and use backtracking</B>
+<OL>
+<LI>Select Input "i15js. js metacompiler with backup"</LI>
+<LI>Select Code "c12js. use comments, c[i14js,c[i14js,c12jf]] m[i14js,c12js]"</LI>
+<LI>Click "Compile" (create stepping stone compiler)</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Click "Compile" (create new metacompiler)</LI>
+<LI>Select Code "c13js. accept backup c[i15js,c[i15js,c12js]], m[i15js,c13js]"</LI>
+<LI>Click "Compare Code and Output" It does compare, so c13js = c[i15js,c[i15js,c12js]].</LI>
+<LI>Select Input "i02b. demo, AEXP2 backup assignment compiler"</LI>
+<LI>Click "Compile" (create AEXP2 compiler)</LI>
+<LI>Select Code "c01bjs. demo, AEXP2 assignments compiler c[i02b,c13js]"</LI>
+<LI>Click "Compare Code and Output" It does compare, so c01bjs = c[i02b,c13js].</LI>
+<LI>Select Input "i01a. demo, AEXP2 backup value assignments"</LI>
+<LI>Click "Compile" (use AEXP2 on demo assignments)</LI>
+</OL>
+This time the i01a extended demo assignments compiled as they should.
+You can verify that the original i01 demo assignments also compile as they should.
+<BR><BR>
+<B>Step 13.4 Embedding the compiler in a web page</B>
+<BR><BR>
+The c13js compiler made in the previous step is wholly contained and may be
+cut off the page and directly pasted in the an html web page. Its capabilities
+may be greatly expanded by simply defining syntax and generating code
+that connects to all the resources available to JavaScript in the browser.
+<BR><BR>
+The simple JavaScript code we have used on these web pages to control the
+generated object compilers is given below. The JavaScript function
+<CODE>StartJsObjCompile</CODE> is connected to the "Compile" button.
+The JavaScript code <CODE>StartJsObjCompile</CODE> calls <CODE>JsObjCompileErrorReport</CODE>
+if an error occurs to provide the available error information. It uses the function
+<CODE>CharCodeString</CODE> to ensure that unprintable characters are shown as their codes.
+Below is a minimal web page needing your JavaScript object compiler pasted at the location indicated.
+<PRE>
+&lt;HTML&gt;&lt;HEAD&gt;&lt;TITLE&gt;Running Your Compiler on a Web Page&lt;/TITLE&gt;&lt;/HEAD&gt;
+&lt;BODY BGCOLOR="#FFFFFF" TEXT="#000000"&gt;
+&lt;SCRIPT LANGUAGE="JavaScript" TYPE="text/javascript"&gt;
+
+// paste your generated compiler here
+
+function StartJsObjCompile()
+{
+  // assumes "compiler" defined above is a js object
+  // clear the output textbox
+  document.CompileForm.OutputText.value = '' ;
+  // run the compiler on the input textbox
+  compiler.compile(document.CompileForm.InputText.value) ;
+  // set the output even if there is an error
+  document.CompileForm.OutputText.value = compiler.outbuf ;
+  // if there was a compiler error, then report it
+  if (compiler.eflag &gt; 0) window.alert(JsObjCompileErrorReport(compiler)) ;
+  window.confirm('Done.');
+} ;
+
+function JsObjCompileErrorReport (compiler) {
+var i ; var j ; var h ; var ctx ; var error;
+  // compilation error, provide error context
+  error = 'ERROR:\n' +
+          'RULE:' + compiler.erule + '\n' +
+          'TOKEN:' + compiler.token + '\n' ;
+  // provide input scan context
+  i = compiler.einput - 20 ;  if (i &lt; 0) i = 0 ;
+  j = compiler.einput + 20 ;  if (j &gt; compiler.inbuf.length) j = compiler.inbuf.length ;
+  ctx = compiler.inbuf.substring(i,compiler.einput) +
+        '&lt;scan&gt;' +
+        compiler.inbuf.substring(compiler.einput,j) ;
+  error += 'INPUT TEXT:\n' + ctx + '\n' +
+           'INPUT CHAR CODES:\n' + CharCodeString(ctx) + '\n' ;
+  // provide output context
+  i = compiler.outbuf.length - 30 ;  if (i &lt; 0) i = 0 ;
+  j = compiler.outbuf.length ;
+  ctx = compiler.outbuf.substring(i,j) ;
+  error += 'OUTPUT TEXT:\n' + ctx + '\n' +
+           'OUTPUT CHAR CODES:\n' + CharCodeString(ctx) + '\n' ;
+  return error ;
+} ;
+
+function CharCodeString (s) {
+var ccs ; var h ;
+  // ensure nonprinting character codes are visible in error messages
+  ccs = '' ;
+  for (var h = 0 ; h &lt; s.length ; h++)
+    { if (s.charCodeAt(h) &lt;= 32)
+        { ccs += '&lt;' + s.charCodeAt(h) + '&gt;' ; }
+      else
+        { ccs += s.charAt(h) ; } ;
+    } ;
+  return ccs ;
+} ;
+
+function ClearOutput() {document.CompileForm.OutputText.value = "" ; } ;
+
+&lt;/SCRIPT&gt;
+&lt;FORM NAME="CompileForm" ACTION="none"&gt;
+&lt;INPUT TYPE="button" NAME="CompileButton" VALUE="Compile"
+  onClick="StartJsObjCompile();"&gt;
+&lt;INPUT TYPE="button" NAME="OutputClearButton" VALUE="Clear"
+  onClick="ClearOutput();"&gt;
+&lt;BR&gt;
+&lt;TEXTAREA NAME="InputText" COLS=80 ROWS=2000&gt;
+Input text shows here.
+&lt;/TEXTAREA&gt;
+&lt;TEXTAREA NAME="OutputText" COLS=80 ROWS=2000&gt;
+On compile output appears here.
+&lt;/TEXTAREA&gt;
+&lt;/FORM&gt;
+&lt;/BODY&gt;
+&lt;/HTML&gt;
+</PRE>
+
+<A NAME="s14"></A>
+<B>Step 14. Closing the circle</B>
+<BR><BR>
+We used Meta II to boot the c13js series metacompiler through
+the steps of this tutorial. It only seems fair to return the
+favor. Way back on Step 3 we were kind of coy about saying where
+the c02 implentation of Meta II came from.
+
+The input i04a below is i03 (Meta II with top-down rules)
+written for the c12* series or better metacompiler - as it does not
+require backup added in the c13js metacompiler. We've basically had
+to add explicit formatting (ie., <CODE>.TB, .LB, .NL</CODE>) and defined the
+tokens.
+<PRE>
+.SYNTAX PROGRAM
+
+PROGRAM = '.SYNTAX' ID .OUT(.LB .TB 'ADR ' * .NL)
+          $ ST
+          '.END' .OUT(.TB 'END' .NL) ;
+
+ST = ID .OUT(.LB * .NL) '=' EX1 '.,' .OUT(.TB 'R' .NL) ;
+
+EX1 = EX2 $('/' .OUT(.TB 'BT L' # .NL) EX2 )
+      .OUT(.LB 'L'# .NL) ;
+
+EX2 = (EX3 .OUT(.TB 'BF L' # .NL) / OUTPUT)
+      $(EX3 .OUT(.TB 'BE' .NL) / OUTPUT)
+      .OUT(.LB 'L'# .NL) ;
+
+EX3 = ID        .OUT(.TB 'CLL '* .NL) /
+      STRING    .OUT(.TB 'TST '* .NL) /
+      '.ID'     .OUT(.TB 'ID' .NL)    /
+      '.NUMBER' .OUT(.TB 'NUM' .NL)   /
+      '.STRING' .OUT(.TB 'SR' .NL)    /
+      '(' EX1 ')'             /
+      '.EMPTY'  .OUT(.TB 'SET' .NL)   /
+      '$' .OUT(.LB 'L'# .NL) EX3 .OUT(.TB 'BT L' # .NL) .OUT(.TB 'SET' .NL) ;
+
+OUTPUT = ('.OUT' '('$OUT1 ')' /
+          '.LABEL' .OUT(.TB 'LB' .NL) OUT1)
+         .OUT(.TB 'OUT' .NL) ;
+
+OUT1 = '*1'    .OUT(.TB 'GN1' .NL)  /
+       '*2'    .OUT(.TB 'GN2' .NL)  /
+       '*'     .OUT(.TB 'CI' .NL)   /
+       STRING  .OUT(.TB 'CL '* .NL) ;
+
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10) ;
+ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK ;
+NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK ;
+STRING : PREFIX .TOKEN .ANY(39) $.ANYBUT(13!10!39) .ANY(39) .DELTOK ;
+ALPHA  : .ANY('A:'Z!'a:'z) ;
+DIGIT  : .ANY('0:'9) ;
+
+.END
+</PRE>
+So let's build this new metacompiler through a stepping stone.
+<OL>
+<LI>Select Input "i04a. Meta II syntax (i03 reordered and tokens)"</LI>
+<LI>Select Code "c12js. use comments, c[i14js,c[i14js,c12jf]] m[i14js,c12js]"</LI>
+<LI>Click "Compile"</LI>
+<LI>Click the Output "Copy to Code" button and Output "Clear" button</LI>
+<LI>Select Input "i03. Meta II syntax (paper fig. 5)"</LI>
+<LI>Click "Compile"</LI>
+<LI>Select Code "c02. Meta II of fig. 5, c[i03,c02]"</LI>
+<LI>Click "Compare Code and Output" It does compare</LI>
+</OL>
+So a c12* metacompiler can recreate Meta II by recognizing it's original syntax
+thus giving us our final equality.
+<OL>
+<LI>c02 = m[i03,c02] = c[i03,c03] = c[i03,c[i04a,c12*]]</LI>
+</OL>
+Graphically this equality represents a directed arc from c12* all the way
+back to c02 Meta II at the very beginning. Thus, the graph is not rooted and
+highly cyclic.
+<BR><BR>
+We presented a framework for embedding generated JavaScript
+object compilers in a single simple html page. We are please to demonstrate
+this here with <A HREF="metaii.html">META II: A Syntax-Oriented Compiler Writing Language</A>
+which contains c[i04a,c12*] and provides "i03. Meta II syntax (paper fig. 5)" as the default input.
+Clicking "Compile" on that page can produce the pseudo assembly for META II missing from the
+original paper <A HREF="#Schorre64">[Schorre64]</A>.
+
+<BR><BR>
+<A NAME="s15"></A>
+<B>Step 15. Benefits and drawbacks</B>
+<BR><BR>
+In terms of the original "dragon book" of compiler theory <i>Principles of Compiler Design</i> <A HREF="#Aho77">[Aho77]</A>
+the compilers we have presented here perform
+<i>recursive-descent parsing</i> with <i>syntax directed translation</i>.
+The first part, the parser, is the recognition of the syntax.
+The second part, the translator, is the code generation.
+
+A parser without backup (our series c02 to c12) is a <i>top-down recursive-descent parser</i>.
+A parser with backup (our series c13) is a <i>top-down backtracking recursive-descent parser</i>.
+<BR><BR>
+<B>Step 15.1 List of drawbacks of this technique</B>
+<BR><BR>
+Aho & Ullman <A HREF="#Aho77">[Aho77, pg. 177]</A> lists the following drawbacks in using these kinds of parsers.
+We also relate each issue to where it was demonstrated in this tutorial.
+<OL>
+<LI>
+<B>left-recursive grammar</B> -
+"A left-recursive grammar can cause a top-down parser to go into an infinite loop."<BR>
+Below we show the left recursive grammar of example 5.13 from <A HREF="#Aho77">[Aho77, pg. 178]</A>.
+(The letters used in (5.8) below are from the Algol 60 report standing for Expression, Term, and Factor.)
+It implements addition +,  multiplication *, and precedence () over an identifier. The equivalent
+input in the Meta II language is also shown.
+<TABLE BORDER>
+<TR><TH>(5.8) of example 5.13</TH><TH>(5.8) in Meta II</TH></TR>
+<TR>
+<TD>
+<PRE>
+E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id
+</PRE>
+</TD>
+<TD>
+<PRE>
+E = E '+' T / T .,
+T = T '*' F / F .,
+F = '(' E ')' / .ID .,
+</PRE>
+</TD>
+</TR>
+</TABLE>
+Yes Meta II will generate an infinite recursion for this syntax.
+(You can check this by cutting the Meta II above and pasting it
+into the rules for i02 and compiling with c02.)
+The simple symptom of left recursion (ignoring backtracking) is a parse rule being invoked at the same input
+position where it was last invoked.
+The example eliminates <i>immediate left recursion</i> (recursion from a rule to itself)
+to arrive at the solution (5.9) below.
+Where "&epsilon;" in (5.9) is the Greek epsilon meaning empty.
+<TABLE BORDER>
+<TR><TH>(5.9) of example 5.13</TH><TH>(5.9) in Meta II</TH><TH>Meta II</TH></TR>
+<TR>
+<TD>
+<PRE>
+E  -> T E'
+E' -> + T E' | &epsilon;
+T  -> F T'
+T' -> * F T' | &epsilon;
+F  -> ( E ) | id
+</PRE>
+</TD>
+<TD>
+<PRE>
+E  = T E1 .,
+E1 = '+' T E1 / .EMPTY .,
+T  = F T1 .,
+T1 = '*' F T1 / .EMPTY .,
+F  = '(' E ')' / .ID .,
+</PRE>
+</TD>
+<TD>
+<PRE>
+E = T $('+' T) .,
+T = F $('*' F) .,
+F = '(' E ')' / .ID .,
+</PRE>
+</TD>
+</TR>
+</TABLE>
+In the third column above we also show the usual way this grammar would be
+implemented in Meta II using <i>iteration</i> with <i>recursion</i> rather than just <i>recursion</i>.
+Notice that Meta II "<CODE>$('+' T)</CODE>" notation is a compact <i>iterative</i> version
+of the "<CODE>E1 = '+' T E1 / .EMPTY .,</CODE>" <i>recursive</i> version.
+
+Recognizing <i>left-recursion</i> in the above examples is easy.
+It becomes more difficult when multiple rules are involved
+(e.g., rule <CODE>A</CODE> calls <CODE>B</CODE> calls <CODE>C</CODE> calls <CODE>A</CODE>).
+However <A HREF="#Aho77">[Aho77, pg. 179]</A> informs us that
+"It is possible, although difficult, to eliminate all left-recursion from any grammar."
+</LI>
+<LI>
+<B>backtracking</B> -
+"If we make a sequence of erroneous expansions and subsequently discover a mismatch,
+we may have to undo the semantic effects ... undoing semantic actions requires substantial overhead."<BR>
+We saw this in step 13 where the context had to be expanded to save the state of the compiler. In particular
+all the information saved by the <CODE>bkset</CODE>  and restored by the <CODE>bkrestore</CODE>
+JavaScript function (i.e., input position, output position, and token buffer).
+</LI>
+<LI>
+<B>language definition</B> -
+"with top-down backtracking parsers the order in which alternatives are tried can affect the language accepted."<BR>
+We saw this in step 13 where the relational operator "<CODE>&lt;</CODE>" was tested before the "<CODE>&lt;=</CODE>" operator.
+</LI>
+<LI>
+<B>error reporting</B> -
+"when failure is reported, we have very little idea where the error actually occurred."<BR>
+The idea here is that if a backtracking parser just keeps backtracking, then on an input containing a syntax error the parser
+just keeps backtracking through all parse rules until it returns to the top rule where with all alternatives tried it just says
+"syntax error" pointing to the beginning of the input string.
+</LI>
+</OL>
+
+<BR><BR>
+<B>Step 15.2 Drawback solutions with this technique</B>
+<BR><BR>
+In this section we will discuss some of the common solutions to each of drawbacks
+listed above.
+<OL>
+<LI>
+<B>left-recursive grammar</B> -
+The symptom of a left-recursion infinite loop is that a rule is called
+twice on the same input position. This is detectable. In fact semantics could be
+created to fail the rule if left-recursion is detected. Under these semantics even
+(5.8) above will work with Meta II. Most of the time this just isn't necessary.
+</LI>
+<LI>
+<B>backtracking</B> -
+This drawback is in essence an efficiency argument on parsing ("requires substantial overhead").
+Further as discussed in
+the "error reporting" section below the authors may be viewing backtracking as
+the implementation of all alternatives (i.e., all alternatives backtrack or all do not).
+In step 13 we implemented backtracking alternation in addition to non-backtracking
+alternation. This way it only need be used where the language designer deems necessary.
+Where it isn't necessary no context need be saved.
+We showed an example where backtracking was necessary in the form of i02b with the rather poor
+syntax choice of <CODE>&lt;-</CODE> and <CODE>-&gt;</CODE> for the shift operators.
+These definitions not only required backtracking but also introduced an ambiguous syntax.
+</LI>
+<LI>
+<B>language definition</B> -
+"with top-down backtracking parsers the order in which alternatives are tried can affect the language accepted."<BR>
+We saw this in step 13 where the relational operator "<CODE>&lt;</CODE>" was tested before the "<CODE>&lt;=</CODE>" operator.
+The usual solution to this problem is to just order the alternatives with the longest literal string first.
+It doesn't seem to be much of a problem in practice. In the relational operator example we really didn't need to add backtracking to
+the <CODE>RX1</CODE> rule of i02b because of the "<CODE>&lt;=</CODE>" issue as either version in the table below works without backtracking.
+We needed to add the backtracking to the <CODE>RX1</CODE> rule of i02b because a higher precedence "<CODE>&lt;-</CODE>" shift operator
+conflicted with the "<CODE>&lt;</CODE>" relational operator.
+<TABLE BORDER>
+<TR><TH>ordered alternatives rule</TH><TH>left-factored rule</TH></TR>
+<TR>
+<TD>
+<PRE>
+RX1 = RX2 ('='  RX2 .OUT(.TB 'eq' .NL) /
+           '<=' RX2 .OUT(.TB 'le' .NL) /
+           '>=' RX2 .OUT(.TB 'ge' .NL) /
+           '<'  RX2 .OUT(.TB 'lt' .NL) /
+           '>'  RX2 .OUT(.TB 'gt' .NL) /
+           .EMPTY) ;
+</PRE>
+</TD>
+<TD>
+<PRE>
+RX1 = RX2 ('='         RX2 .OUT(.TB 'eq' .NL) /
+           '<' ('='    RX2 .OUT(.TB 'le' .NL) /
+                .EMPTY RX2 .OUT(.TB 'lt' .NL) ) /
+           '>' ('='    RX2 .OUT(.TB 'ge' .NL) /
+                .EMPTY RX2 .OUT(.TB 'gt' .NL) ) /
+           .EMPTY) ;
+</PRE>
+</TD>
+</TR>
+</TABLE>
+We also pointed out that one of the left-factored rule allows a space between the
+characters of the "&lt;=" operator and the ordered alternatives rule does not.
+Aho & Ullman <A HREF="#Aho77">[Aho77, pg. 177]</A> seem to be concerned that the <i>commutative</i> property of EBNF alternatives is
+not somehow represented in the implementation of the parser because the alternatives
+are tried in order. I believe it's more of a concern that each parser for a language parses
+the language the the same way. As parser generators generate tables based on tokens described by a separate lexer
+the real question is do all of these table parsing schemes provide the same parse?
+How would we know? Look at the configuration and version space: 1)lexer 2)table generator 3)table interpreter.
+Each of which are contained in separate specification.
+</LI>
+<LI>
+<B>error reporting</B> -
+"when failure is reported, we have very little idea where the error actually occurred."<BR>
+The idea here is that if a backtracking parser just keeps backtracking, then on an input containing a syntax error the parser
+just keeps backtracking through all parse rules until it returns to the top rule where will all alternatives tried it just says
+"syntax error" pointing to the beginning of the input string.
+As stated this seems to presume a single alternation implementation with full backtracking.
+In step 13 this is not what we implemented. In fact it's rather ironic that backtracking would
+be cited as a problem in error recovery when in practice a form of it is used to implement error reporting.
+As an example the following replacement and additions to i15js would print out the name of
+all parse and token rules containing a syntax error.
+The two token rules <CODE>PBODY</CODE> and <CODE>TBODY</CODE> are defined to skip over the body of
+a parse rule or token rule.
+This is a very primitive error reporting based on backtracking.
+Usually error reporting is implemented using a different construct similar to
+backtracking which taps into the syntax error reporting routine (e.g., c13js <CODE>bkerr</CODE> function)
+to find the furthest parse position
+and rule calling the error to format a detailed error message.
+<PRE>
+PROGRAM = '.SYNTAX' ID 
+          .OUT(.LB '// ' * ' compiler' .NL)
+          .OUT('compiler = {' .LM+ .NL .NL)
+          PREAMBLE
+          $([PR | ID .OUT('error: ' * .NL) PBODY] / COMMENT)
+          '.TOKENS'
+          $([TR | ID .OUT('error: ' * .NL) TBODY] / COMMENT)
+          '.END' 
+          POSTAMBLE 
+          .OUT(.LM- '}' .NL) ;
+
+PBODY  : .TOKEN $(STRING / .ANYBUT(''!';)) .ANY(';) .DELTOK;
+TBODY  : .TOKEN $(.ANYBUT(''!';) / .ANY('') .ANY(0:127)) .ANY(';) .DELTOK;
+</PRE>
+</LI>
+</OL>
+In a later version of the "dragon book" <A HREF="#Aho86">[Aho86]</A> the techniques discussed in this tutorial
+have been moved towards the front of the book probably in recognition that most
+parsing and compiling is done using them. Still many well-known language compilers
+(such as C, C++, java, etc.) are built using the table driven parser techniques.
+It's up to each developer to decide whether the benefits of
+this technique outweigh the drawbacks for a particular compiling problem.
+<BR><BR>
+<B>Step 15.3 Extensions</B>
+<BR><BR>
+In this step we suggest some future extensions for your metacompiler that others
+have found useful.
+<OL>
+<LI>
+<B>reserved words</B> - A construct such as <CODE>.RESERVED('if' 'then' 'repeat' 'while')</CODE>
+added to parse rule <CODE>TX3</CODE> of i15js that fails if the token buffer contains
+any of the reserved words in the construct. Useful to prevent reserved words being used
+as identifiers if that is desired.
+</LI>
+<LI>
+<B>iteration limits</B> - A modification to the interation constructs of parse
+rules <CODE>EX3</CODE> and <CODE>TX3</CODE> of i15js such as <CODE>$&lt;1:10&gt;</CODE>
+that fails if the iterator is successful too few or too many times. Useful to prevent
+identifiers from being too long or control constructs too empty such as a block with no
+statements. Usually augmented with an upper limit ability to allow unlimited (e.g.,<CODE>$&lt;1:*&gt;</CODE>.)
+</LI>
+<LI>
+<B>error recovery</B> - A construct such as <CODE>[[</CODE> rule1 <CODE>]</CODE> rule2 <CODE>]</CODE>
+added to rule <CODE>EX3</CODE> of i15js that is an error trap. If any errors occur in
+rule1 then the compiler backtracks to the entry state of the construct and rule2
+is invoked to skip over a logical section containg the syntax error. The square brackets
+are used to indicate its similarity to parser backtracking. Error recovery is differentiated
+from backtracking in order to provide better error messages and error counts.
+</LI>
+<LI>
+<B>named counters</B> - A construct such as <CODE>#</CODE>Name added to rule
+<CODE>EX3</CODE> of i15js that implements named integer counters.
+The counters need operations to change them ranging from simple increment and decrement
+to an implentation along the lines of the AEXP arithmetic assignments example of <A HREF="#s03">Step 3</A>.
+Also these counters can be used
+in the <CODE>OUT1</CODE> rule just as the <CODE>#</CODE> generated unique
+numbers are accepted. As an example the above error recovery extension rule2 might increment
+a counter named <CODE>#ERRORS</CODE>.
+</LI>
+<LI>
+<B>string buffers</B> - Similar to named counters, string buffers are a construct such as <CODE>*</CODE>Name added to rule
+<CODE>EX3</CODE> of i15js. Buffers are strings and as with the counters may
+be assigned values from the token buffer and other buffers. Also as with counters they may be used
+in the <CODE>OUT1</CODE> rule just as the token buffer <CODE>*</CODE> string is accepted.
+As an example the above error recovery mechanism might set
+a buffer named <CODE>*ERRORTOKEN</CODE> to indicate the token buffer at the point of error
+and <CODE>*ERRORLINE</CODE> to provide the furthest progress into a source line.
+</LI>
+<LI>
+<B>input redirection</B> - A construct such as <CODE>.INCLUDE(</CODE>filename<CODE>)</CODE>
+that redirects the input to the given file until it is exhausted.
+The filename is specified using <CODE>OUT1</CODE> rule constructs.
+The file and position may
+have to be restored on a backtrack depending on where this construct is allowed.
+</LI>
+<LI>
+<B>output redirection</B> - A construct such as <CODE>.CON</CODE> or <CODE>.FILE</CODE>
+that is similar to the <CODE>OUTPUT</CODE> rule construct <CODE>.OUT</CODE> that
+directs output messages to the user console or a file.
+</LI>
+<LI>
+<B>symbol table</B> - Constructs for keeping and finding information during a compilation that
+uses and sets string buffers, named counters, and literal string constants to keep track of
+and query information. As mentioned in <A HREF="#s15">Step 15. Benefits and drawbacks</A>
+backtracks may have to roll back this information. The easiest way to start is just use a
+linear list of entries in memory. The roll back then just needs to restore the maximum index
+into the symbol table.
+</LI>
+<LI>
+<B>database connection</B> - Constructs for cross-module compilation that contains
+the symbol table information from other compilations or interfaces that will be linked with this
+compilation. As an example many of the resources used by compilers are from operating system
+shared files. Under MS Windows these are Dynamic Link Library (.DLL) files or under Unix/Linux
+Shared Object (.so) files. On a successful compile the information can be updated with the public information for
+the compiled module. The easiest way to start is just use a sorted file of fields indexed
+by the module name and load it into memory.
+</LI>
+<LI>
+<B>tree generation</B> - Rather than generate text output directly as we have done in this tutorial we could
+have generated trees for futher processing <A HREF="#Carr69">[Carr69]</A>. As an example we could write a
+tree oriented AEXP compiler as
+<PRE>
+.SYNTAX AEXP
+
+AEXP = .LIST(stmts AS $AS) ;
+AS = .ID ::address ':=' EX1 :store[2] ';' ;
+EX1 = EX2 $('+' EX2 :add[2] /
+            '-' EX2 :sub[2] ) ;
+EX2 = EX3 $('*' EX3 :mpy[2] /
+            '/' EX3 :div[2] ) ;
+EX3 = EX4 $('^' EX3 :exp[2]) ;
+EX4 = '+' EX5 / '-' EX5 :minus[1] / EX5 ;
+EX5 = .ID ::value /
+      .NUMBER ::number /
+      '(' EX1 ')' :parens[1] ;
+
+.END
+</PRE>
+The easiest way to start is keep a tree node stack in memory where nodes are pushed onto the stack. Each tree node has
+a name and data. The three node forms used above are:
+<OL>
+<LI>
+<B>token nodes</B> - such as <CODE>::address</CODE> above which pushes a node named "address" containing the token buffer string data
+on the node stack.
+</LI>
+<LI>
+<B>tree nodes</B> - such as <CODE>:store[2]</CODE> above which pushes a node named "store" on the stack containing two <i>pointers</i> to
+the second node on node stack and top of node stack in that order.
+</LI>
+<LI>
+<B>list nodes</B> - a construct such as <CODE>.LIST(stmts AS $AS)</CODE> above which
+<OL>
+<LI>
+pushes a special list marker node containing the <CODE>stmts</CODE> node name
+</LI>
+<LI>
+evaluates the <CODE>AS $AS</CODE> which push other nodes
+</LI>
+<LI>
+pushes a single node with the node name <CODE>stmts</CODE> found in the list marker
+with data array containing <i>pointers</i> to all the nodes down to the list marker, removes the
+nodes down to the list marker, and removes the list marker
+</LI>
+</OL>
+</OL>
+The use of pointers above is stressed as they provide an efficient way for
+tree construction to interact with the needs of backtracking. On backtracking
+tree constructions need to be rolled back. Two major reasons for generating trees
+are optimization and separating code generation from the parser. Notice the above <CODE>AEXP</CODE>
+description works for all implementations because the code generation has been removed.
+Once the code generation has been removed the same generated tree can be the source for
+generating code for various platforms (including hardware and software mixes), simulations, diagrams, and reports.
+</LI>
+</OL>
+A lot of the above extensions need much more discussion to become clear. They
+are just presented here as things to think about at the end of this first tutorial.  
+
+<BR><BR>
+<A NAME="s16"></A>
+<B>Step 16. Source for the metacompiler workshop</B>
+<BR><BR>
+The Metacompiler Workshop page <A HREF="mc_workshop.html">mc_workshop.html</A> consists
+of five subpages each in a frame. The links to the subpages are below so you can view
+the page source if your browser does not allow viewing the source of a frame.
+<OL>
+<LI>
+<A HREF="mc_title.html">mc_title.html</A> is the top frame and is just text.
+</LI>
+<LI>
+<A HREF="mc_input.html">mc_input.html</A> is the left input frame. It is computer generated and
+contains just quoted versions of the various inputs of the input selection drop
+down box.
+</LI>
+<LI>
+<A HREF="mc_code.html">mc_code.html</A> is the center code frame. Also computer generated it is similar to the input
+frame and contains just quoted versions of the various codes of the code selection drop
+down box.
+</LI>
+<LI>
+<A HREF="mc_output.html">mc_output.html</A> is the right output frame. It implements the
+"Copy to Code" and "Clear" buttons.
+</LI>
+<LI>
+<A HREF="mc_semantics.html">mc_semantics.html</A> is the bottom frame. It is where all the real work happens.
+It implements the "Compile", "Compare Code and Output" and "Extract Syntax to Output" buttons. In this frame
+<UL>
+<LI>
+input text is <CODE>parent.frames[1].document.InputForm.InputText.value</CODE>
+</LI>
+<LI>
+code text is <CODE>parent.frames[2].document.CodeForm.CodeText.value</CODE>
+</LI>
+<LI>
+output text is <CODE>parent.frames[3].document.OutputForm.OutputText.value</CODE>
+</LI>
+<LI>
+The "Extract Syntax to Output" button simply invokes the fully contained JavaScript compiler c[i16,c13js]
+saved as <CODE>syntax_extract</CODE> through the <CODE>StartExtractSyntax</CODE> on the input and places
+the result in the output.
+</LI>
+<LI>
+The "Compare Code and Output" button calls the hand written function <CODE>StartCompare</CODE> to
+compare the code and output text.
+</LI>
+<LI>
+The "Compile" button calls the hand written function <CODE>StartCompile</CODE> that
+determines which of the three compiler implementation models (i.e., Meta II interpreter, JavaScript functions, or
+JavaScript object) is contained in the code text.
+<UL>
+<LI>
+Meta II interpreter model calls <CODE>StartIntCompile</CODE>.
+</LI>
+<LI>
+JavaScript function model evaluates the code text to define the functions and calls <CODE>StartJsFnCompile</CODE>
+which presumes a function named <CODE>compiler</CODE> was defined.
+</LI>
+<LI>
+JavaScript object model evaluates the code text to define the object and calls <CODE>StartJsObjCompile</CODE>
+which presumes an object named <CODE>compiler</CODE> was defined and it defines a <CODE>compile</CODE> method.
+</LI>
+</UL>
+</LI>
+</UL>
+</LI>
+</OL>
+The HTML source has been validated by <A HREF="http://validator.w3.org/">W3C Validator</A>
+as "Valid HTML 4.01 Frameset" for mc_workshop.html and "Valid HTML 4.01 Transitional"
+for all the others.
+<CENTER>
+<TABLE>
+<TR>
+<TD>
+    <a href="http://validator.w3.org/check?uri=http://www.bayfronttechnologies.com/mc_workshop.html"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Frameset" height="31" width="88"></a><BR>
+        mc_workshop
+</TD>
+<TD>
+    <a href="http://validator.w3.org/check?uri=http://www.bayfronttechnologies.com/mc_title.html"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Transitional" height="31" width="88"></a><BR>
+        mc_title
+</TD>
+<TD>
+    <a href="http://validator.w3.org/check?uri=http://www.bayfronttechnologies.com/mc_input.html"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Transitional" height="31" width="88"></a><BR>
+        mc_input
+</TD>
+<TD>
+    <a href="http://validator.w3.org/check?uri=http://www.bayfronttechnologies.com/mc_code.html"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Transitional" height="31" width="88"></a><BR>
+        mc_code
+</TD>
+<TD>
+    <a href="http://validator.w3.org/check?uri=http://www.bayfronttechnologies.com/mc_output.html"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Transitional" height="31" width="88"></a><BR>
+        mc_output
+</TD>
+<TD>
+    <a href="http://validator.w3.org/check?uri=http://www.bayfronttechnologies.com/mc_semantics.html"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Transitional" height="31" width="88"></a><BR>
+        mc_semantics
+</TD>
+</TR>
+</TABLE>
+</CENTER>
+Click on any of the icons above to validate them for yourself.
+<BR><BR>
+In general the Meta II interpreter model and JavaScript function model share the
+same runtime routines. The three models demonstrate the three primary models of code generation <A HREF="#Bell73">[Bell73]</A>.
+<OL>
+<LI>
+<i>interpreter</i> (Meta II interpreter model) where the text or a code representation
+(bytecode) of the text is interpreted by an interpreter loop to create a series of calls
+to a <i>runtime library</i>.
+</LI>
+<LI>
+<i>threaded code</i> (JavaScript function model) where the compiler primarily outputs calls
+to a language <i>runtime library</i> that is linked with the code.
+</LI>
+<LI>
+<i> compiled code</i> (JavaScript object model) where the compiler primarily outputs executable
+code with minimal calls to a linked <i>runtime library</i>.
+</LI>
+</OL>
+If all the heavy work is done in the <i>runtime library</i>, then the efficiency of these
+different code models is not all that different. However if a majority of the work is
+done in compiled code (i.e., the <i>inner loop</i>) then compiled code is much more efficient.
+You can see it in this tutorial. The Meta II pseudo assembly interpreter is the slowest.
+While the threaded code JavaScript function model and compiled code JavaScript object model
+are fairly close in speed.
+
+<BR><BR><BR>
+<A NAME="s17"></A>
+<B>Step 17. Conclusions and pragmatics</B>
+<BR><BR>
+The tools that you use to solve a particular problem always depend on the problem.
+Metacompilers are not the answer to everything but sometimes they can be very helpful.
+It's up to the artisan to pick the right set of tools for the job. Metacompilers
+are just another available tool.
+<BR><BR>
+If you are faced with the task of scanning or translating a language such as C or C++,
+then using a table driven parser generator (e.g., Lex/Yacc) may be your best bet.
+Especially if there is a readily available grammar. However if you need only a cursory scan
+or just interface information or the input language is very simple then they might be a bit cumbersome.
+The metcompilers work well in that case. I used them to collect source data on millions of
+lines of source code reported in
+<A HREF="http://www.bayfronttechnologies.com/l02draco.htm#wcre96">"Finding Reusable Software Components in Large Systems"</A>.
+<BR><BR>
+If you have a rich source of semantics (e.g., a lot of library routines you can call which perform
+domain-specific operations such as calls to a game engine or elaborate hardware) then the
+metacompilers make it easy for you to build language interfaces to these semantics.
+In this case where the strong semantics are large grain and efficiently written there is very little difference
+in efficiency between the interpreter, threaded code, and compiled code models
+discussed in <A HREF="#s16">Step 16</A>.
+This is because all the heavy work is done in the semantic routines.
+Hence a lot of games contain scripting languages for extending an existing game or writing
+a completely new game. The metacompilers are good at this where
+embedding a parsing table generator would be cumbersome.
+The point again is to choose the tool for the problem at hand.
+<BR><BR>
+As I was writing this tutorial I found myself speculating about what happened to metacompiler
+technology; what drove compiler theory; and how has the world changed since ASCII?
+Some of my speculations are shared below: 
+<OL>
+<LI>
+A lot of the parsing issues we discussed might be interlinked with the character set.
+If there
+is a Unicode character code for each of a language's operators so that the operators are not strings
+drawn from a limited set of symbols, how much of a problem is this parsing? As an example we might use the actual Unicode
+symbol for "&le;" rather than the low-level string combination "&lt;=".
+The ambiguous grammar problem we had using "<-" and "->" for left and right shift
+could easily be solved by using the single symbols "&laquo;" and "&raquo;".
+The mathematicians are completely un-shy about using single symbols for meaning. Perhaps the
+computer scientists should join them in this view. Programming languages at this level
+have been around for over fifty years. Perhaps it's time we advanced from making
+"puzzle book" general-purpose languages.
+</LI>
+<LI>
+Compiler theory started as graph analysis driven by the Chomsky hierarchy.
+In particular most computer languages are Type-2 context free grammars consisting
+of:
+<OL>
+<LI> terminal symbols (scanned input)</LI> <LI> nonterminal symbols (rule names)</LI> <LI> productions (rules) of the
+form nonterminal goes to a string consisting of terminals and nonterminals</LI>
+</OL>
+You can see this in the input definitions we've used.
+However the concept of a metacompiler as a compiler generator that is capable of
+reproducing itself from a high-level domain specific description really never fit well
+into this original defining framework of recognition systems.
+Even if we adopt simplistic definitions of "high-level" as the input being smaller
+than the output and "domain-specific"
+as the input syntax and output concepts being wholly contained independent of implementation, then
+we are still dealing with concepts outside of the scope of this defining framework.
+Did failing to fit into the prevailing framework of the day cause these concepts
+not to be investigated well during the rise of compiler theory?
+</LI>
+<LI>
+Many modern computer languages seem to bloat up, become a syntatic
+mess of low-level symbols, and then die. Is this because of the magnificent job the formal compiler
+theorists did in creating table driven context-free parsers? Could this be just a variant of
+the old addage "Any knife sharp enough to help you is sharp enough to cut you?"
+</LI>
+</OL>
+I wrote this tutorial because the techniques of metacompilers and the flavor of
+using them seems to have gotten lost somehow.
+They changed my thinking a long time ago (e.g., of course programs write programs).
+They were and are a key technique for stepping onto or between new hardware.
+As we face massive multi-core systems with complex programmable peripherials such as
+networking, graphics, and sound I thought metacompilers were worth explaining.
+Hopefully building small embeddable languages to program these devices
+now doesn't seem so daunting.
+<BR><BR>
+Thanks for slogging through this tutorial.
+I hope you enjoyed it as much as I enjoyed revisiting this old friend.
+<BR><BR>
+<A NAME="refs"></A>
+<B>References</B>
+<BR><BR>
+
+<A NAME="Aho77"></A>
+<B>[Aho77]</B><BR> A. Aho and J. Ullman, <i>Principles of Compiler Design</i>, Addison-Wesley, 1977.<BR><BR>
+
+<A NAME="Aho86"></A>
+<B>[Aho86]</B><BR>  A. Aho, R. Sethi and J. Ullman, <i>Compilers: Principles, Techniques, and Tools</i>, Addison-Wesley, 1986.<BR><BR>
+
+<A NAME="Bell73"></A>
+<B>[Bell73]</B><BR> J.R. Bell, "Threaded Code," <i>Communications of the ACM</i> vol 16, no 6, June 1973 pp 370-372.
+<A HREF="http://doi.acm.org/10.1145/362248.362270">http://doi.acm.org/10.1145/362248.362270</A><BR><BR>
+
+<A NAME="Carr69"></A>
+<B>[Carr69]</B><BR>C. Stephen Carr, David A. Luther, Sherian Erdmann,
+"The TREE-META Compiler-Compiler System: A Meta Compiler System for the Univac 1108 and General Electric 645,"
+University of Utah Technical Report RADC-TR-69-83, March 1969.
+<A HREF="http://www.ntis.gov/search/product.aspx?ABBR=AD855122">http://www.ntis.gov document AD855122</A><BR><BR>
+
+<A NAME="Knuth90"></A>
+<B>[Knuth90]</B><BR> D. E. Knuth, "The Genesis of Attribute Grammars,"
+In <I>Proceedings of the International Conference on Attribute Grammars and their Applications</I> (Paris, France).
+P. Deransart and M. Jourdan, Eds. Springer-Verlag New York, New York, NY, 1-12. 1990.<BR><BR>
+
+<A NAME="McClure65"></A>
+<B>[McClure65]</B><BR>Robert M. McClure, "TMG - A syntax-directed compiler," <I>Proceedings of the 20th ACM
+National Conference</I> (1965), 262-274.<BR><BR>
+
+<A NAME="Schorre64"></A>
+<B>[Schorre64]</B><BR>D. V. Schorre,  "META II: A Syntax-Oriented Compiler Writing Language,"
+<I>Proceedings of the 19th ACM National Conference</I> (1964),
+ACM Press, New York, NY, 41.301-41.3011.
+<A HREF="http://doi.acm.org/10.1145/800257.808896">http://doi.acm.org/10.1145/800257.808896</A><BR><BR>
+<BR><BR>
+    <a href="http://validator.w3.org/check?uri=referer"><img
+        src="valid-html401.png"
+        alt="Valid HTML 4.01 Transitional" height="31" width="88"></a>
+<BR>
+<H6>
+Copyright &#169; 2006, 2008 Bayfront Technologies, Inc.
+<BR>
+http://www.BayfrontTechnologies.com/mc_tutorial.html
+<BR>
+Permission to use, copy, and distribute this document for any
+purpose with or without fee is hereby granted,
+provided that the document is unmodified and the above
+copyright notice, URL, and this permission notice appear in all copies.
+<BR>
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+</H6>
+</BODY>
+</HTML>
+
+
+
+
+
